@@ -2,7 +2,7 @@
 
 Extensão Chrome (Manifest V3, TypeScript) que transforma a página de um torneio Arena do Lichess em uma composição para transmissão: partida principal escolhida pelo apresentador, fotos cadastradas localmente e acompanhamento da classificação e do progresso dos jogadores de um team. Funciona sem backend, sem login e sem token, usando a API pública do Lichess.
 
-- Especificação: `LICHESS_TEAM_STUDIO_SPEC.pdf` · Roadmap: `LICHESS_TEAM_STUDIO_ROADMAP.pdf`
+- Especificação e roadmap: documentos PDF mantidos fora do repositório (resumo das decisões em `docs/`)
 - Guia do apresentador: [docs/INSTALACAO-E-OBS.md](docs/INSTALACAO-E-OBS.md)
 
 ## Instalação rápida

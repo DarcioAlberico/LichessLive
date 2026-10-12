@@ -5,3 +5,6 @@ test-results/
 playwright-report/
 .e2e-profile/
 *.log
+
+# Documentos de especificação (mantidos apenas localmente)
+*.pdf
