@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Lichess Team Studio",
+  "version": "0.0.0",
+  "description": "Transforma a página de um torneio Arena do Lichess em uma composição para transmissão, com fotos e progresso do seu team.",
+  "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Lichess Team Studio",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://lichess.org/tournament/*", "https://lichess.org/swiss/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_page": "options.html",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://lichess.org/*"],
+  "commands": {
+    "toggle-broadcast": {
+      "suggested_key": { "default": "Alt+Shift+T" },
+      "description": "Alternar o modo transmissão na aba do torneio"
+    },
+    "flip-board": {
+      "suggested_key": { "default": "Alt+Shift+B" },
+      "description": "Girar o tabuleiro da composição"
+    },
+    "pin-game": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "Fixar a partida atual"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; connect-src https://lichess.org; img-src 'self' blob: data:; style-src 'self'"
+  }
+}

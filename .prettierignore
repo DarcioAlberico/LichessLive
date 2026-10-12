@@ -1,0 +1,6 @@
+dist/
+release/
+node_modules/
+tests/fixtures/
+package-lock.json
+*.pdf

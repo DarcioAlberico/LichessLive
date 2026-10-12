@@ -1,0 +1,6 @@
+{"id":"6fwDn5JD","variant":{"key":"standard","name":"Standard","short":"Std"},"speed":"blitz","perf":"blitz","rated":true,"source":"arena","createdAt":1791782152438,"tournamentId":"Gxx2vWUz","players":{"white":{"user":{"name":"tom230","id":"tom230"},"rating":2637},"black":{"user":{"name":"ntsonyane2004","id":"ntsonyane2004"},"rating":2097}}}
+{"fen":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","wc":180,"bc":180}
+{"fen":"rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1","lm":"d2d4","wc":180,"bc":180}
+{"fen":"rnbqkbnr/pppp1ppp/4p3/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2","lm":"e7e6","wc":180,"bc":180}
+{"fen":"rnbqkbnr/pppp1ppp/4p3/8/3P4/5N2/PPP1PPPP/RNBQKB1R b KQkq - 1 2","lm":"g1f3","wc":180,"bc":180}
+{"fen":"rnbqkbnr/pppp2pp/4p3/5p2/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 3","lm":"f7f5","wc":180,"bc":173}

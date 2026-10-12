@@ -1,0 +1,5 @@
+{"id":"0u7534ir","variant":{"key":"standard","name":"Standard","short":"Std"},"speed":"blitz","perf":"blitz","rated":true,"source":"arena","createdAt":1791737782036,"tournamentId":"YVqdsK7c","players":{"white":{"user":{"name":"is1406","id":"is1406"},"rating":1921,"ratingDiff":-4},"black":{"user":{"name":"Meyzler_Boris","id":"meyzler_boris"},"rating":2110,"ratingDiff":3}}}
+{"fen":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","wc":180,"bc":180}
+{"fen":"rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1","lm":"d2d4","wc":180,"bc":180}
+{"fen":"6k1/1b6/p6p/1p6/2p5/2P1p1PP/PP1r1q2/6K1 w - - 1 40","lm":"f4f2","wc":58,"bc":7}
+{"id":"0u7534ir","variant":{"key":"standard","name":"Standard","short":"Std"},"speed":"blitz","perf":"blitz","rated":true,"source":"arena","createdAt":1791737782036,"tournamentId":"YVqdsK7c","fen":"6k1/1b6/p6p/1p6/2p5/2P1p1PP/PP1r1q2/6K1 w - - 1 40","turns":78,"status":{"id":30,"name":"mate"},"winner":"black","players":{"white":{"user":{"name":"is1406","id":"is1406"},"rating":1921,"ratingDiff":-4},"black":{"user":{"name":"Meyzler_Boris","id":"meyzler_boris"},"rating":2110,"ratingDiff":3}}}
