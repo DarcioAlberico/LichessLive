@@ -147,6 +147,13 @@ describe('preferências, horas e diagnóstico', () => {
     expect(s.lastTab).toBe('team');
     expect(s.autoSwitch).toBe(false);
   });
+  it('migra o nb padrão antigo (500) para 1000 e preserva escolhas do operador', () => {
+    expect(sanitizeSettings({}).rankingNb).toBe(1000);
+    expect(sanitizeSettings({ settingsVersion: 1, rankingNb: 500 }).rankingNb).toBe(1000);
+    expect(sanitizeSettings({ settingsVersion: 1, rankingNb: 300 }).rankingNb).toBe(300);
+    expect(sanitizeSettings({ settingsVersion: 2, rankingNb: 500 }).rankingNb).toBe(500);
+    expect(sanitizeSettings({ settingsVersion: 1 }).settingsVersion).toBe(2);
+  });
   it('mostra horas no fuso configurado', () => {
     const t = Date.UTC(2026, 9, 12, 23, 10, 5);
     expect(formatTime(t, 'America/Sao_Paulo')).toBe('20:10');

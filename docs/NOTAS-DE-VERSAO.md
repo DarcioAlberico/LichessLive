@@ -1,5 +1,13 @@
 # Notas de versão
 
+## 1.0.1 — 12/10/2026
+
+- A cobertura padrão da classificação passa de 500 para **1000** participantes (o máximo do endpoint de resultados). Preferências salvas com o padrão antigo (500) são migradas para 1000; valores escolhidos pelo operador são mantidos.
+- Medido em uma Arena real com 1224 jogadores: o lote de 1000 linhas foi validado e levou cerca de 20 s para chegar. Com o intervalo nominal de 30 s, as coletas não se sobrepõem, mas em torneios muito grandes vale considerar 45–60 s em _Classificação e coletas_.
+- Correções da revisão de código (geração da seleção ao continuar a sessão, fotos em vários lotes, prazo de 45 s nas requisições REST, vigia de inatividade de 60 s no stream, reinícios concorrentes de sessão, intenção restaurada após falha de carga, aviso de importação parcial) e ação "selecionar team" na aba Teams.
+
+Atualização: substitua o conteúdo da pasta da extensão pelo novo pacote e clique em recarregar em `chrome://extensions`. Os dados locais são preservados.
+
 ## 1.0.0 — 12/10/2026
 
 Primeira versão completa (RF01 a RF14). Pacote: `release/lichess-team-studio-1.0.0.zip` (SHA‑256 em `.zip.sha256`).
@@ -28,7 +36,7 @@ Primeira versão completa (RF01 a RF14). Pacote: `release/lichess-team-studio-1.
 
 - **Atraso da API**: o stream público omite os três últimos lances de partidas em andamento. O aviso fica no rodapé. Não há promessa de atraso zero. O modo de tabuleiro nativo não foi promovido (ver `M0-RELATORIO.md`).
 - **Relógios**: são os da posição transmitida; não há contagem regressiva fabricada.
-- **Classificação ao vivo é provisória**: posições observadas por coleta (nominal 30 s) e o recorte é limitado por `nb` (padrão 500, máximo 1000). Cobertura parcial é informada.
+- **Classificação ao vivo é provisória**: posições observadas por coleta (nominal 30 s) e o recorte é limitado por `nb` (padrão 1000, que também é o máximo). Cobertura parcial é informada.
 - **Descoberta de partidas é oportunista**: duelos informados pelo torneio (até 1×/min) e resolução sob demanda. A lista diz "Partidas identificadas".
 - **Listas privadas de membros** não são importadas (sem autenticação nesta versão); use o cadastro manual.
 - **Janela de operação** precisa ficar aberta; minimização prolongada e economia de energia ainda dependem da homologação manual (T17).

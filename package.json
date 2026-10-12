@@ -1,6 +1,6 @@
 {
   "name": "lichess-team-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Extensão Chrome (Manifest V3) que transforma a página de um torneio Arena do Lichess em uma composição para transmissão.",
   "license": "MIT",

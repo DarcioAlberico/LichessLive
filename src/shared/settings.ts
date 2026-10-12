@@ -4,7 +4,7 @@ import { isRecord } from './validate';
 
 /** Preferências pequenas guardadas em chrome.storage.local (SPEC 9.3). */
 export interface Settings {
-  settingsVersion: 1;
+  settingsVersion: 2;
   timezone: string;
   /** nb pedido ao endpoint de resultados (limita a cobertura). */
   rankingNb: number;
@@ -21,9 +21,9 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  settingsVersion: 1,
+  settingsVersion: 2,
   timezone: 'America/Sao_Paulo',
-  rankingNb: 500,
+  rankingNb: 1000,
   rankingIntervalSec: 30,
   teamsIntervalSec: 45,
   autoSwitch: false,
@@ -54,10 +54,13 @@ export function sanitizeSettings(value: unknown): Settings {
   const v = isRecord(value) ? value : {};
   const r = isRecord(v.retention) ? v.retention : {};
   const d = DEFAULT_SETTINGS;
+  // Versão 1 tinha nb padrão 500; quem ficou no padrão antigo passa ao novo padrão (1000).
+  // Um valor diferente escolhido pelo operador é mantido.
+  const legacyDefaultNb = v.settingsVersion !== 2 && v.rankingNb === 500;
   return {
-    settingsVersion: 1,
+    settingsVersion: 2,
     timezone: validTimezone(v.timezone) ?? d.timezone,
-    rankingNb: clampInt(v.rankingNb, 10, 1000, d.rankingNb),
+    rankingNb: legacyDefaultNb ? d.rankingNb : clampInt(v.rankingNb, 10, 1000, d.rankingNb),
     rankingIntervalSec: clampInt(v.rankingIntervalSec, 15, 300, d.rankingIntervalSec),
     teamsIntervalSec: clampInt(v.teamsIntervalSec, 30, 300, d.teamsIntervalSec),
     autoSwitch: typeof v.autoSwitch === 'boolean' ? v.autoSwitch : d.autoSwitch,
