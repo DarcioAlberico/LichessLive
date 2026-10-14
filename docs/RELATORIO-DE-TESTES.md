@@ -1,15 +1,15 @@
-# Relatório de testes e metas medidas — versão 1.0.0
+# Relatório de testes e metas medidas — versão 1.0.6
 
-Execução: 12/10/2026, Windows 11, Node 25.9, Chromium 1223 (Playwright 1.64). Comandos: `npm run check` (typecheck strict, ESLint, Vitest, fronteiras) e `npm run test:e2e`.
+Execução: 14/10/2026 (versão 1.0.6; a primeira execução completa foi a da 1.0.0, em 12/10/2026), Windows 11, Node 25.9, Chromium 1223 (Playwright 1.64). Comandos: `npm run check` (typecheck strict, ESLint, Vitest, fronteiras) e `npm run test:e2e`.
 
 ## Resumo
 
 | Suíte                                                                                                           | Arquivos | Testes | Resultado |
 | --------------------------------------------------------------------------------------------------------------- | -------- | ------ | --------- |
-| Unitários (`tests/unit`)                                                                                        | 5        | 57     | aprovados |
+| Unitários (`tests/unit`)                                                                                        | 6        | 69     | aprovados |
 | Contrato (`tests/contract`) — respostas reais do Lichess                                                        | 2        | 20     | aprovados |
-| Integração (`tests/integration`) — sessão, fila, streams, persistência, DOM, coordenador, regressões da revisão | 7        | 69     | aprovados |
-| E2E (`tests/e2e`) — extensão real no Chromium, Lichess simulado                                                 | 2        | 11     | aprovados |
+| Integração (`tests/integration`) — sessão, fila, streams, persistência, DOM, coordenador, regressões da revisão | 8        | 85     | aprovados |
+| E2E (`tests/e2e`) — extensão real no Chromium, Lichess simulado                                                 | 2        | 13     | aprovados |
 | Fronteiras de arquitetura e permissões (`scripts/check-boundaries.mjs`)                                         | —        | —      | ok        |
 
 Os E2E usam dados fictícios para repetibilidade. A conferência em torneios públicos reais, a gravação no OBS e a sessão de quatro horas fazem parte da homologação manual e **ainda não foram executadas** (ver "Pendências").
@@ -35,23 +35,30 @@ Os E2E usam dados fictícios para repetibilidade. A conferência em torneios pú
 
 Demais cenários: T15 `ndjson.test.ts` (chunks cortados em 1, 2, 3, 7 e 64 bytes com UTF‑8 multibyte, heartbeat, linha inválida, limites); T16 `session.test.ts` e `selection.test.ts` (resultado antecipado só no painel; banner só com a descrição final do stream; ocultação); T17 E2E (painel fechado e reaberto); T18 ensaio curto abaixo.
 
+## Melhorias das versões 1.0.4 a 1.0.6
+
+- CSS hostil (1.0.4): o Lichess simulado reduz elementos anexados ao `<html>` a 0×0, invisíveis e transparentes; o E2E confere que a composição continua visível (`programa-css-hostil.png`).
+- Xeque, material e notação (1.0.6): `tests/unit/chess.test.ts` — casas atacadas, xeque de dama, cavalo e peão, bloqueio, balanço material por tipo de peça, abertura real do fixture do stream ("1. d4", "1… e6", "2. Cf3", "2… f5"), roques nos dois formatos de UCI, en passant, promoção com xeque, desambiguação e recusa de lance que não reproduz a posição seguinte.
+- Sessão e composição (1.0.6): `tests/integration/improvements.test.ts` — mate só com a descrição final do stream, limiar do relógio, rotação de abas pulando abas vazias, próxima partida do team em ciclo, descoberta de partida fora dos duelos e do seu fim, filtro e ordem da aba Partidas, posição do team e distâncias (ocultas com pontos ocultos), contagem antes do início, colocação mantida na partida em destaque que também está nos duelos, protocolo e preferências. `dom.test.tsx`: destaque de xeque e rolagem da lista até o jogador.
+- E2E "melhorias" (1.0.6): xeque e "2. Dh5+" numa partida fora dos duelos, próxima partida do team (Magnus e depois Alireza), partida no ar primeiro e nomes inteiros na aba Partidas.
+
 ## Revisão de código
 
 Uma revisão independente apontou seis defeitos, todos corrigidos com teste de regressão (`tests/integration/review-regressions.test.ts`): geração da seleção não restaurada ao continuar a sessão (programa descartava ViewModels), fotos além de 4 MB não reenviadas, falta de prazo nas requisições REST e de vigia de inatividade no stream (agora 45 s e 60 s com releitura silenciosa — o Lichess não envia heartbeat em partida parada), sessão descartada podendo abrir stream e reinícios concorrentes, restauração da intenção errada após falha de carga, e importação de backup não informando falha parcial das preferências.
 
 ## Metas medidas (ensaio automatizado curto)
 
-Ambiente: Chromium headless, Lichess simulado, 500 trocas de partida pelo programa (`test-results/metricas-e2e.json`). Estes números **não** incluem atraso do Lichess, rede real nem codificação do vídeo.
+Ambiente: Chromium headless, Lichess simulado, 500 trocas de partida pelo programa (`test-results/metricas-e2e.json`, execução de 14/10/2026). Estes números **não** incluem atraso do Lichess, rede real nem codificação do vídeo.
 
 | Métrica                                                | Meta                       | Medido                                                                        | Situação                                                                        |
 | ------------------------------------------------------ | -------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Evento recebido → composição renderizada (p95)         | ≤ 150 ms                   | 3 ms (535 amostras)                                                           | atendida no ensaio                                                              |
-| Clique → retorno visual local (p95)                    | ≤ 100 ms                   | 15,1 ms (30 amostras)                                                         | atendida no ensaio                                                              |
-| Troca com dados em cache → tabuleiro consistente (p95) | ≤ 500 ms                   | 5 ms (530 amostras)                                                           | atendida no ensaio                                                              |
-| Crescimento de memória após trocas repetidas           | ≤ 10% após aquecimento     | painel: +8,3% nas trocas 100–300 e −0,7% nas 300–500; programa: +2,1% e +0,7% | atendida; estabiliza (buffers limitados de diagnóstico)                         |
+| Evento recebido → composição renderizada (p95)         | ≤ 150 ms                   | 2 ms (537 amostras)                                                           | atendida no ensaio                                                              |
+| Clique → retorno visual local (p95)                    | ≤ 100 ms                   | 16,7 ms (30 amostras)                                                         | atendida no ensaio                                                              |
+| Troca com dados em cache → tabuleiro consistente (p95) | ≤ 500 ms                   | 4 ms (530 amostras)                                                           | atendida no ensaio                                                              |
+| Crescimento de memória após trocas repetidas           | ≤ 10% após aquecimento     | painel: +7,1% nas trocas 100–300 e −0,3% nas 300–500; programa: +1,2% e +0,7% | atendida; estabiliza (buffers limitados de diagnóstico)                         |
 | Streams ativos após 500 trocas                         | sem órfãos                 | 1                                                                             | atendida                                                                        |
 | Layout sem rolagem/corte                               | 1920×1080 e 1280×720 úteis | sem rolagem, tabuleiro quadrado (E2E e `layout.test.ts`)                      | atendida (navegador)                                                            |
-| Memória adicional da extensão no cenário padrão        | ≤ 250 MB                   | heap JS: painel ≈ 2,2 MB, programa ≈ 3,1 MB                                   | parcial: falta medir processo completo com 1000 participantes e 50 acompanhados |
+| Memória adicional da extensão no cenário padrão        | ≤ 250 MB                   | heap JS: painel ≈ 2,3 MB, programa ≈ 3,3 MB                                   | parcial: falta medir processo completo com 1000 participantes e 50 acompanhados |
 | Sessão de quatro horas sem falha crítica               | 4 h                        | —                                                                             | **não medida**                                                                  |
 | Recuperação com rede restaurada                        | início ≤ 30 s fora de 429  | degraus 1–30 s verificados em teste                                           | **não medida em rede real**                                                     |
 

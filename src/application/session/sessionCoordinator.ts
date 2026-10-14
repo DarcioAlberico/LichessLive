@@ -285,6 +285,9 @@ export class SessionCoordinator {
           case 'pin':
             session.pin();
             return;
+          case 'nextTeamGame':
+            void session.nextTeamGame();
+            return;
         }
         return;
       case 'photoRequest':

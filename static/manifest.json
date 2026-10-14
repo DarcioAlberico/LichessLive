@@ -44,6 +44,10 @@
     "pin-game": {
       "suggested_key": { "default": "Alt+Shift+P" },
       "description": "Fixar a partida atual"
+    },
+    "next-team-game": {
+      "suggested_key": { "default": "Alt+Shift+N" },
+      "description": "Ir para a próxima partida do team em andamento"
     }
   },
   "content_security_policy": {

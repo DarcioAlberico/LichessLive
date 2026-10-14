@@ -43,6 +43,16 @@ export const GAMES: Record<string, { white: string; black: string; moves: [strin
       ['rnbqkbnr/pppp1ppp/8/4p3/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 0 2', 'e7e5'],
     ],
   },
+  // 1.e4 f6 2.Dh5+ — termina com o rei preto em xeque (fora dos duelos do torneio).
+  GameDDD4: {
+    white: 'Sete_Fic',
+    black: 'Oito_Fic',
+    moves: [
+      ['rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1', 'e2e4'],
+      ['rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'f7f6'],
+      ['rnbqkbnr/ppppp1pp/5p2/7Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2', 'd1h5'],
+    ],
+  },
 };
 
 const id = (n: string) => n.toLowerCase();

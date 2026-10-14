@@ -2,7 +2,7 @@
 
 ## 1. Instalar
 
-1. Baixe `release/lichess-team-studio-1.0.0.zip` e extraia em uma pasta permanente (ex.: `C:\LichessTeamStudio`). Ou gere a pasta com `npm ci && npm run build` (resultado em `dist/`).
+1. Baixe `release/lichess-team-studio-1.0.6.zip` e extraia em uma pasta permanente (ex.: `C:\LichessTeamStudio`). Ou gere a pasta com `npm ci && npm run build` (resultado em `dist/`).
 2. No Chrome, abra `chrome://extensions`, ative **Modo do desenvolvedor** e clique em **Carregar sem compactação**. Selecione a pasta extraída (a que contém `manifest.json`).
 3. Fixe o ícone da extensão na barra (ícone de quebra‑cabeça → alfinete).
 
@@ -45,6 +45,9 @@ A composição mostra no canto inferior direito "Lichess Team Studio · programa
 | Ir para a partida de um jogador     | clique em _Nosso team_ / _Classificação_ (acompanha o jogador) |
 | Girar o tabuleiro                   | Alt+Shift+B ou _Girar tabuleiro_                               |
 | Fixar a partida                     | Alt+Shift+P ou _Fixar partida_                                 |
+| Próxima partida do team             | Alt+Shift+N ou _Próxima partida do team_                       |
+| Rodar as abas sozinhas              | _Programa_ → _Rodar as abas automaticamente_                   |
+| Só partidas com acompanhados        | _Programa_ → _Aba Partidas: só partidas com acompanhados_      |
 | Aceitar nova partida do acompanhado | aviso azul no painel → _Trocar_                                |
 | Mudar a aba mostrada ao público     | _Programa_ → botões de aba                                     |
 | Esconder pontos e resultados        | _Ocultar pontos e resultados_                                  |

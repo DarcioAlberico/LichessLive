@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { ProgramIntent, ProgramTab } from '../../shared/protocol/messages';
 import { formatDuration } from '../../shared/time';
 import { BoardView } from '../board/boardView';
+import { PIECE_SVG } from '../board/pieces.generated';
+import type { PieceCode } from '../../domain/entities/fen';
 import type { ComputedLayout } from '../layouts/presets';
 import { computeLayout } from '../layouts/presets';
 import type {
@@ -98,17 +100,45 @@ export function Photo({ url, initials, small }: { url: string | null; initials: 
   );
 }
 
-function Countdown({ finishesAt }: { finishesAt: number | null }) {
+function Countdown({ finishesAt, startsAt }: { finishesAt: number | null; startsAt: number | null }) {
   const [now, setNow] = useState(Date.now());
+  const target = finishesAt ?? startsAt;
   useEffect(() => {
-    if (finishesAt === null) return;
+    if (target === null) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [finishesAt]);
-  if (finishesAt === null) return null;
+  }, [target]);
+  if (finishesAt !== null) {
+    return (
+      <span class="t-clock" aria-label="Tempo restante do torneio">
+        {formatDuration(finishesAt - now)}
+      </span>
+    );
+  }
+  if (startsAt !== null) {
+    return (
+      <span class="t-clock" aria-label="Tempo para o início do torneio">
+        {startsAt - now > 0 ? `Começa em ${formatDuration(startsAt - now)}` : 'Começando…'}
+      </span>
+    );
+  }
+  return null;
+}
+
+/**
+ * Peças pequenas da vantagem material. Sempre desenhadas no conjunto claro: sobre a ficha escura as
+ * peças pretas ficariam ilegíveis, e o lado da ficha já indica quem está à frente.
+ */
+function MiniPieces({ pieces }: { pieces: string[] }) {
   return (
-    <span class="t-clock" aria-label="Tempo restante do torneio">
-      {formatDuration(finishesAt - now)}
+    <span class="c-mat" aria-hidden="true">
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          class="c-mat-piece"
+          dangerouslySetInnerHTML={{ __html: PIECE_SVG[`w${p.slice(1)}` as PieceCode] ?? '' }}
+        />
+      ))}
     </span>
   );
 }
@@ -201,11 +231,23 @@ function PlayerCard({
         </div>
         <div class="c-sub">
           <span class={`c-color ${card.color}`} aria-hidden="true" />
-          {sub || (card.color === 'white' ? 'Brancas' : 'Pretas')}
+          <span class="c-subtext">{sub || (card.color === 'white' ? 'Brancas' : 'Pretas')}</span>
+          {card.materialPieces.length > 0 ? <MiniPieces pieces={card.materialPieces} /> : null}
+          {card.materialPlus > 0 ? <span class="c-plus">+{card.materialPlus}</span> : null}
         </div>
       </div>
-      <div class={`c-clock ${card.clockAvailable ? '' : 'na'}`} title="Relógio da posição transmitida">
-        {card.clockAvailable ? card.clockText : 'indisponível'}
+      <div class="c-right">
+        {card.lastMoveText ? (
+          <span class="c-move" title="Último lance">
+            {card.lastMoveText}
+          </span>
+        ) : null}
+        <div
+          class={`c-clock ${card.clockAvailable ? '' : 'na'} ${card.lowTime ? 'low' : ''}`}
+          title="Relógio da posição transmitida"
+        >
+          {card.clockAvailable ? card.clockText : 'indisponível'}
+        </div>
       </div>
     </div>
   );
@@ -281,6 +323,7 @@ function GamesPanel({
     <>
       <h2>{t.title}</h2>
       <div class="p-sub">
+        {t.onAirText ? <span class="p-onair">{t.onAirText}</span> : null}
         {t.summaryText} · {t.coverageText}
       </div>
       <VirtualList<GameRowVM>
@@ -288,10 +331,10 @@ function GamesPanel({
         getId={(r) => r.gameId}
         rowHeight={rowHeight}
         label="Partidas identificadas"
-        emptyText="Nenhuma partida identificada ainda."
+        emptyText={t.emptyText}
         selectedId={vm.selection.gameId}
         onSelect={(id) => onIntent({ type: 'selectGame', gameId: id })}
-        rowClass={(r) => (r.favorite ? 'watched' : '')}
+        rowClass={(r) => `${r.favorite ? 'watched' : ''} ${r.onAir ? 'onair' : ''}`}
         render={(r) => (
           <>
             <div class="r-col lts-game">
@@ -311,9 +354,11 @@ function GamesPanel({
             </div>
             <span class="lts-game-side">
               {r.onAir ? (
-                <span class="lts-air">No ar</span>
+                <span class="lts-air-dot" title="No ar" aria-label="No ar" />
               ) : r.favorite ? (
-                <span class="r-star">★</span>
+                <span class="r-star" aria-label="Com acompanhados">
+                  ★
+                </span>
               ) : null}
               {r.live ? null : <span class="r-small">{r.statusText}</span>}
             </span>
@@ -387,6 +432,10 @@ function RankingPanel({
   onIntent: ProgramProps['onIntent'];
 }) {
   const t = vm.tabs.ranking;
+  const focusId =
+    t.rows.find((r) => r.userId === vm.selection.userId)?.userId ??
+    t.rows.find((r) => r.watched)?.userId ??
+    null;
   return (
     <>
       <h2>{t.title}</h2>
@@ -400,6 +449,8 @@ function RankingPanel({
         rowHeight={rowHeight}
         label="Classificação"
         emptyText="Classificação ainda não recebida."
+        focusId={focusId}
+        smooth={!vm.layout.reducedMotion}
         selectedId={vm.selection.userId}
         onSelect={(id) => onIntent({ type: 'selectPlayer', userId: id })}
         rowClass={(r) => (r.watched ? 'watched' : '')}
@@ -499,7 +550,10 @@ function TeamsPanel({
         render={(r) => (
           <>
             <span class="r-rank">{r.rank}º</span>
-            <span class="r-name">{r.name}</span>
+            <div class="r-col">
+              <span class="r-name">{r.name}</span>
+              {r.detailText ? <span class="r-small">{r.detailText}</span> : null}
+            </div>
             <span class="r-score">{r.scoreText}</span>
           </>
         )}
@@ -571,9 +625,7 @@ function Side({
         {active === 'progress' ? (
           <ProgressPanel vm={vm} rowHeight={rh} photoUrl={photoUrl} onIntent={onIntent} />
         ) : null}
-        {active === 'teams' ? (
-          <TeamsPanel vm={vm} rowHeight={Math.round(rh * 0.8)} onIntent={onIntent} />
-        ) : null}
+        {active === 'teams' ? <TeamsPanel vm={vm} rowHeight={rh} onIntent={onIntent} /> : null}
       </div>
     </div>
   );
@@ -650,7 +702,12 @@ export function ProgramApp(props: ProgramProps) {
     <div class={`lts-app ${vm.layout.reducedMotion ? 'reduced' : ''}`} style={cssVars(layout, vm)}>
       <header class="lts-top">
         <span class="t-name">{vm.top.tournamentName}</span>
-        {vm.top.teamName ? <span class="t-team">{vm.top.teamName}</span> : null}
+        {vm.top.teamName ? (
+          <span class="t-team">
+            {vm.top.teamName}
+            {vm.top.teamStatusText ? <span class="t-team-status"> · {vm.top.teamStatusText}</span> : null}
+          </span>
+        ) : null}
         {banners.length > 0 ? (
           <span class="lts-banners" role="status" aria-live="polite">
             {banners.slice(0, 2).map((b) => (
@@ -668,7 +725,7 @@ export function ProgramApp(props: ProgramProps) {
         <span class="t-meta">
           <span>{vm.top.formatText}</span>
           <span>{vm.top.statusText}</span>
-          <Countdown finishesAt={vm.top.finishesAt} />
+          <Countdown finishesAt={vm.top.finishesAt} startsAt={vm.top.startsAt} />
         </span>
       </header>
       <main class="lts-body" style={{ gridTemplateColumns: columns }}>

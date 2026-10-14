@@ -303,6 +303,9 @@ class ProgramController {
     } else if (key === 'p') {
       e.preventDefault();
       this.onIntent({ type: 'pin' });
+    } else if (key === 'n') {
+      e.preventDefault();
+      this.onIntent({ type: 'nextTeamGame' });
     }
   };
 

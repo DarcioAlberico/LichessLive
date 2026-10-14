@@ -876,8 +876,8 @@ function PreferencesSection({
         </label>
       </div>
       <p class="hint">
-        Atalhos padrão: Alt+Shift+T (transmissão), Alt+Shift+B (girar), Alt+Shift+P (fixar). Para remapear,
-        abra{' '}
+        Atalhos padrão: Alt+Shift+T (transmissão), Alt+Shift+B (girar), Alt+Shift+P (fixar), Alt+Shift+N
+        (próxima partida do team). Para remapear, abra{' '}
         <button onClick={() => void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })}>
           chrome://extensions/shortcuts
         </button>

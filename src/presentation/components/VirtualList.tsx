@@ -19,6 +19,9 @@ interface Props<T> {
   label: string;
   emptyText: string;
   rowClass?: (item: T) => string;
+  /** Mantém este item visível (centralizado) quando muda de posição — exceto durante interação. */
+  focusId?: string | null;
+  smooth?: boolean;
 }
 
 /** Aplica uma ordem congelada: itens conhecidos mantêm a posição, novos vão para o fim. */
@@ -42,7 +45,19 @@ export function applyFrozenOrder<T>(
 }
 
 export function VirtualList<T>(props: Props<T>) {
-  const { items, getId, rowHeight, render, onSelect, selectedId, label, emptyText, rowClass } = props;
+  const {
+    items,
+    getId,
+    rowHeight,
+    render,
+    onSelect,
+    selectedId,
+    label,
+    emptyText,
+    rowClass,
+    focusId,
+    smooth,
+  } = props;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(400);
@@ -73,6 +88,17 @@ export function VirtualList<T>(props: Props<T>) {
   );
 
   useEffect(() => setPressed(null), [selectedId]);
+
+  const focusIndex = focusId ? ordered.findIndex((it) => getId(it) === focusId) : -1;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || focusIndex < 0 || frozen) return;
+    const target = Math.max(0, focusIndex * rowHeight - (el.clientHeight - rowHeight) / 2);
+    if (Math.abs(el.scrollTop - target) < rowHeight / 2) return;
+    if (typeof el.scrollTo === 'function') el.scrollTo({ top: target, behavior: smooth ? 'smooth' : 'auto' });
+    else el.scrollTop = target;
+    setScrollTop(target);
+  }, [focusId, focusIndex, rowHeight, frozen === null]);
 
   const hold = () => {
     interacting.current = true;

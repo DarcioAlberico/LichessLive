@@ -1,4 +1,6 @@
+import { materialBalance, withMate } from '../../domain/entities/chess';
 import { formatClock } from '../../domain/entities/clock';
+import { parseFen } from '../../domain/entities/fen';
 import { coverageLabel } from '../../domain/entities/coverage';
 import type { GamePlayer, GameState } from '../../domain/entities/game';
 import { isFinishedStatus, resultText, statusDescription } from '../../domain/entities/game';
@@ -37,6 +39,12 @@ function displayName(userId: UserId | null, fallback: string, profiles: Map<User
   return p?.displayName?.trim() || p?.usernameDisplay || fallback;
 }
 
+/** Limite de alerta do relógio: 10% do tempo inicial, entre 5 s e 30 s (20 s sem ritmo conhecido). */
+export function lowTimeThresholdMs(limitMs: number | null): number {
+  if (!limitMs) return 20_000;
+  return Math.min(30_000, Math.max(5_000, Math.round(limitMs * 0.1)));
+}
+
 function playerCard(
   s: TournamentSession,
   game: GameState,
@@ -55,6 +63,16 @@ function playerCard(
     teamName = link.teamId ? (s.teamNames.get(link.teamId) ?? link.teamId) : null;
   }
   const turn = game.position?.fen.split(' ')[1];
+  const side = color === 'white' ? 'w' : 'b';
+  const move = game.position?.move;
+  let lastMoveText: string | null = null;
+  if (move && move.side === side) {
+    // Mate só é anunciado quando a própria fonte do tabuleiro informa o resultado.
+    lastMoveText =
+      game.outcome?.status === 'mate' && game.outcome.winner === color ? withMate(move.label) : move.label;
+  }
+  const parsed = game.position ? parseFen(game.position.fen) : null;
+  const material = parsed?.ok ? materialBalance(parsed.board)[color] : { pieces: [], plus: 0 };
   return {
     color,
     userId: player.userId,
@@ -68,6 +86,10 @@ function playerCard(
     clockAvailable: clockMs !== null,
     toMove: !isFinishedStatus(game.status) && turn === (color === 'white' ? 'w' : 'b'),
     rankText: entry && !hideResults ? `${entry.rank}º` : null,
+    lowTime: clockMs !== null && clockMs < lowTimeThresholdMs(s.tournamentClockLimitMs),
+    lastMoveText,
+    materialPieces: material.pieces,
+    materialPlus: material.plus,
   };
 }
 
@@ -186,7 +208,7 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
       ours: trackedSet.has(p.userId) || favorites.has(p.userId),
     };
   };
-  const games: GameRowVM[] = [...s.identifiedGames.values()]
+  const allGames: GameRowVM[] = [...s.identifiedGames.values()]
     .filter((g) => g.status !== 'finished' || g.gameId === onAirGameId)
     .map((g) => {
       const [a, b] = g.players;
@@ -209,9 +231,14 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
     })
     .sort(
       (x, y) =>
+        Number(y.onAir) - Number(x.onAir) ||
         Number(y.favorite) - Number(x.favorite) ||
         Math.min(x.whiteRank ?? 1e9, x.blackRank ?? 1e9) - Math.min(y.whiteRank ?? 1e9, y.blackRank ?? 1e9),
     );
+  const onlyTracked = s.gamesOnlyTracked;
+  const games = onlyTracked ? allGames.filter((g) => g.favorite || g.onAir) : allGames;
+  const onAirRow = allGames.find((g) => g.onAir);
+  const onAirText = onAirRow ? `No ar: ${onAirRow.white} × ${onAirRow.black}` : null;
 
   // ---------------- Nosso team
   const relative = s.progress.get('watched') ?? [];
@@ -335,16 +362,49 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
     general.length > 0 ? `${ups} subiram · ${downs} desceram · ${same} mantiveram` : 'Aguardando observações';
   const playingCount = teamRows.filter((r) => r.playing).length;
   const teamSummary = `${teamRows.length} acompanhados · ${playingCount} jogando agora`;
-  const gamesWithOurs = games.filter((g) => g.favorite).length;
+  const gamesWithOurs = allGames.filter((g) => g.favorite).length;
 
   // ---------------- Teams
-  const teamsRows = (s.teamStandings ?? []).map((ts) => ({
-    teamId: ts.teamId,
-    rank: ts.rank,
-    name: ts.name,
-    scoreText: hide ? '' : `${ts.score} pts`,
-    isOurs: ts.teamId === s.record.teamId,
-  }));
+  const standings = s.teamStandings ?? [];
+  const ours = standings.find((ts) => ts.teamId === s.record.teamId) ?? null;
+  const above = ours ? standings.find((ts) => ts.rank === ours.rank - 1) : undefined;
+  const plural = (n: number) => (n === 1 ? 'pt' : 'pts');
+  const teamsRows = standings.map((ts) => {
+    const isOurs = ts.teamId === s.record.teamId;
+    let detailText: string | null = null;
+    if (isOurs) {
+      const scorers = ts.topPlayers
+        .slice(0, 4)
+        .map((p) =>
+          hide
+            ? displayName(p.userId, p.name, s.profiles)
+            : `${displayName(p.userId, p.name, s.profiles)} ${p.score}`,
+        );
+      const gap =
+        !hide && above
+          ? `a ${above.score - ts.score} ${plural(above.score - ts.score)} do ${above.rank}º`
+          : null;
+      detailText = [gap, scorers.length ? scorers.join(' · ') : null].filter(Boolean).join(' · ') || null;
+    } else if (ours && !hide) {
+      const diff = ts.score - ours.score;
+      detailText =
+        diff > 0
+          ? `${diff} ${plural(diff)} à frente do nosso team`
+          : diff < 0
+            ? `${-diff} ${plural(-diff)} atrás do nosso team`
+            : 'empatado com o nosso team';
+    }
+    return {
+      teamId: ts.teamId,
+      rank: ts.rank,
+      name: ts.name,
+      scoreText: hide ? '' : `${ts.score} pts`,
+      isOurs,
+      detailText,
+    };
+  });
+  const teamStatusText =
+    isTB && ours ? `${ours.rank}º de ${standings.length}${hide ? '' : ` · ${ours.score} pts`}` : null;
 
   const available: ProgramTab[] = ['games', 'team', 'ranking', 'progress'];
   if (isTB) available.push('teams');
@@ -390,6 +450,16 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
 
   const finishesAt =
     t && t.secondsToFinish !== null && t.status === 'started' ? t.fetchedAt + t.secondsToFinish * 1000 : null;
+  const startsAt =
+    t && t.status === 'created'
+      ? t.secondsToStart !== null
+        ? t.fetchedAt + t.secondsToStart * 1000
+        : t.startsAt
+      : null;
+  const main = buildMain(s);
+  if (startsAt !== null && main.state === 'empty' && !main.notice) {
+    main.notice = `O torneio começa às ${formatTime(startsAt, tz)}`;
+  }
 
   return {
     top: {
@@ -404,14 +474,22 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
             : 'Ao vivo'
         : '',
       finishesAt,
+      startsAt,
+      teamStatusText,
     },
-    main: buildMain(s),
+    main,
     tabs: {
       available,
       games: {
         title: 'Partidas identificadas',
         coverageText: 'A lista não inclui todas as partidas do torneio',
-        summaryText: `${games.length} partidas conhecidas · ${gamesWithOurs} com acompanhados`,
+        summaryText: onlyTracked
+          ? `${gamesWithOurs} partidas com acompanhados (filtro ativo)`
+          : `${allGames.length} partidas conhecidas · ${gamesWithOurs} com acompanhados`,
+        onAirText,
+        emptyText: onlyTracked
+          ? 'Nenhuma partida com acompanhados identificada agora.'
+          : 'Nenhuma partida identificada ainda.',
         rows: games.slice(0, 200),
       },
       team: {

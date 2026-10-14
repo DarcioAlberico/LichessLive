@@ -90,8 +90,8 @@ chrome.commands.onCommand.addListener((command) => {
       const tabId = await activeLichessTabId();
       if (tabId === null) return;
       await setBroadcast(tabId, !(await isTabActive(tabId)));
-    } else if (command === 'flip-board' || command === 'pin-game') {
-      const cmd = command === 'flip-board' ? 'flip' : 'pin';
+    } else if (command === 'flip-board' || command === 'pin-game' || command === 'next-team-game') {
+      const cmd = command === 'flip-board' ? 'flip' : command === 'pin-game' ? 'pin' : 'nextTeam';
       chrome.runtime
         .sendMessage({ type: 'lts:command', command: cmd } satisfies RuntimeMessage)
         .catch(() => undefined);

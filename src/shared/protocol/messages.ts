@@ -38,7 +38,8 @@ export type ProgramIntent =
   | { type: 'selectTeam'; teamId: string }
   | { type: 'setTab'; tab: ProgramTab }
   | { type: 'flip' }
-  | { type: 'pin' };
+  | { type: 'pin' }
+  | { type: 'nextTeamGame' };
 
 export type ProgramToStudio =
   | (Envelope & { type: 'hello'; page: PageInfo })
@@ -74,7 +75,7 @@ export type RuntimeMessage =
   | { type: 'lts:setTabActive'; active: boolean }
   | { type: 'lts:resizeProgramWindow'; tabId: number; width: number; height: number }
   | { type: 'lts:tick' }
-  | { type: 'lts:command'; command: 'flip' | 'pin' }
+  | { type: 'lts:command'; command: 'flip' | 'pin' | 'nextTeam' }
   | { type: 'lts:activate' }
   | { type: 'lts:deactivate' }
   | { type: 'lts:status' }
@@ -130,7 +131,7 @@ export function parseRuntimeMessage(value: unknown): RuntimeMessage | null {
         : null;
     }
     case 'lts:command':
-      return value.command === 'flip' || value.command === 'pin'
+      return value.command === 'flip' || value.command === 'pin' || value.command === 'nextTeam'
         ? { type: value.type, command: value.command }
         : null;
     case 'lts:dataChanged': {
@@ -205,6 +206,8 @@ function parseIntent(v: unknown): ProgramIntent | null {
       return { type: 'flip' };
     case 'pin':
       return { type: 'pin' };
+    case 'nextTeamGame':
+      return { type: 'nextTeamGame' };
     default:
       return null;
   }

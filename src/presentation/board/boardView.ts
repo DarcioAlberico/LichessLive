@@ -1,4 +1,5 @@
 import type { PieceCode } from '../../domain/entities/fen';
+import { checkSquare } from '../../domain/entities/chess';
 import { parseFen, uciToSquares } from '../../domain/entities/fen';
 import { PIECE_SVG } from './pieces.generated';
 
@@ -25,6 +26,7 @@ export class BoardView {
   private readonly rankLabels: HTMLSpanElement[] = [];
   private orientation: 'white' | 'black' = 'white';
   private lastMoveSquares: number[] = [];
+  private checkedSquare: number | null = null;
   private lastFen: string | null = null;
   /** Contador de atualizações efetivas (diagnóstico de piscadas). */
   renders = 0;
@@ -117,6 +119,14 @@ export class BoardView {
         this.pieceAt[i] = next;
         changed = true;
       }
+      // Rei em xeque do lado a jogar.
+      const check = checkSquare(parsed.board, parsed.turn);
+      if (check !== this.checkedSquare) {
+        if (this.checkedSquare !== null) this.squares[this.checkedSquare]?.classList.remove('check');
+        if (check !== null) this.squares[check]?.classList.add('check');
+        this.checkedSquare = check;
+        changed = true;
+      }
     }
     const lm = uciToSquares(input.lastMove);
     const nextLm = lm ? [...lm] : [];
@@ -128,6 +138,11 @@ export class BoardView {
     }
     if (changed) this.renders += 1;
     return changed;
+  }
+
+  /** Casa do rei em xeque, ou null (testes). */
+  checkSquareIndex(): number | null {
+    return this.checkedSquare;
   }
 
   /** Peças atualmente desenhadas (testes). */

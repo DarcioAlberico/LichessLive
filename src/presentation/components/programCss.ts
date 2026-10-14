@@ -30,6 +30,7 @@ export const PROGRAM_CSS = `
 .lts-sq.dark { background: #7D93AB; }
 .lts-sq.lm.light { background: #E9D98B; }
 .lts-sq.lm.dark { background: #B9A85A; }
+.lts-board .lts-sq.check { background-image: radial-gradient(circle, rgba(255,48,48,.95) 0%, rgba(230,20,20,.6) 32%, rgba(200,0,0,0) 70%); }
 .lts-piece { width: 100%; height: 100%; display: block; }
 .lts-coord { position: absolute; font-size: calc(var(--board) / 42); font-weight: 700; line-height: 1; pointer-events: none; }
 .lts-coord.file { bottom: 2px; width: 12.5%; text-align: right; padding-right: 3px; }
@@ -48,6 +49,15 @@ export const PROGRAM_CSS = `
 .lts-card .c-title { color: #F2C46D; margin-right: 6px; }
 .lts-card .c-sub { color: var(--text2); font-size: var(--f-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lts-card .c-clock { font-size: var(--f-clock); font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 10px; border-radius: 8px; background: rgba(0,0,0,.25); white-space: nowrap; }
+.lts-card .c-clock.low { background: #B3261E; color: #FFFFFF; }
+.lts-card .c-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
+.lts-card .c-move { font-size: var(--f-meta); font-weight: 700; color: var(--accent); white-space: nowrap; }
+.lts-card .c-sub { display: flex; align-items: center; gap: 0; }
+.lts-card .c-subtext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lts-card .c-mat { display: inline-flex; flex: none; margin-left: 10px; }
+.lts-card .c-mat-piece { display: inline-block; width: calc(var(--f-meta) * 1.4); height: calc(var(--f-meta) * 1.4); margin-right: calc(var(--f-meta) * -0.45); }
+.lts-card .c-mat-piece svg { width: 100%; height: 100%; display: block; }
+.lts-card .c-plus { flex: none; margin-left: 10px; font-weight: 700; color: var(--text); }
 .lts-card .c-clock.na { color: var(--text2); font-size: var(--f-meta); }
 .lts-card .c-color { display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin-right: 6px; vertical-align: baseline; border: 1px solid #8a96a6; }
 .lts-card .c-color.white { background: #FBFBF8; }
@@ -91,6 +101,10 @@ export const PROGRAM_CSS = `
 .lts-game-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
 .lts-delta.none { font-size: var(--f-meta); font-weight: 600; }
 .lts-live { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: #7EE2A8; margin-right: .4em; vertical-align: middle; box-shadow: 0 0 0 3px rgba(126,226,168,.25); }
+.lts-air-dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; background: #FF5A5A; box-shadow: 0 0 0 3px rgba(255,90,90,.28); }
+.lts-row.onair { box-shadow: inset 3px 0 0 #FF5A5A; }
+.p-onair { display: block; color: var(--text); font-weight: 700; }
+.lts-top .t-team-status { color: var(--text2); font-weight: 600; }
 .lts-air { flex: none; font-size: calc(var(--f-meta) * .85); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #101722; background: #F2C46D; border-radius: 999px; padding: 2px 8px; }
 .lts-delta.inline { font-size: var(--f-meta); padding: 0 6px; margin-left: 6px; }
 .lts-delta { font-weight: 700; white-space: nowrap; flex: none; padding: 2px 8px; border-radius: 6px; }

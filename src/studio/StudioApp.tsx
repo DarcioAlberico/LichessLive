@@ -513,10 +513,21 @@ function GameSection({ rt, s }: { rt: StudioRuntime; s: TournamentSession }) {
   const [gameInput, setGameInput] = useState('');
   const [userInput, setUserInput] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [nextMsg, setNextMsg] = useState<string | null>(null);
   const tz = rt.settings().timezone;
   const g = s.game;
   const sel = s.selection;
   const notice = noticeText(s);
+  const goNextTeamGame = async () => {
+    const r = await s.nextTeamGame();
+    setNextMsg(
+      r === 'switched'
+        ? null
+        : r === 'only'
+          ? 'Esta é a única partida do team em andamento conhecida.'
+          : 'Nenhuma partida do team em andamento conhecida agora. A busca foi antecipada; tente de novo em alguns segundos.',
+    );
+  };
   const games = useMemo(
     () =>
       [...s.identifiedGames.values()]
@@ -600,6 +611,9 @@ function GameSection({ rt, s }: { rt: StudioRuntime; s: TournamentSession }) {
         </div>
       ) : null}
       <div class="row">
+        <button class="primary" onClick={() => void goNextTeamGame()} title="Alt+Shift+N">
+          Próxima partida do team ▶
+        </button>
         <button onClick={() => s.flip()} title="Alt+Shift+B">
           Girar tabuleiro
         </button>
@@ -651,6 +665,11 @@ function GameSection({ rt, s }: { rt: StudioRuntime; s: TournamentSession }) {
           Abrir partida
         </button>
       </div>
+      {nextMsg ? (
+        <p class="hint" role="status">
+          {nextMsg}
+        </p>
+      ) : null}
       {err ? (
         <p class="error" role="alert">
           {err}
@@ -763,6 +782,43 @@ function ProgramSection({ rt, s }: { rt: StudioRuntime; s: TournamentSession }) 
           Ocultar pontos e resultados (evitar spoilers)
         </label>
       </div>
+      <div class="row">
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={rt.settings().rotateTabsSec > 0}
+            onChange={(e) =>
+              void rt.setSettings({ rotateTabsSec: (e.target as HTMLInputElement).checked ? 20 : 0 })
+            }
+          />
+          Rodar as abas automaticamente
+        </label>
+        {rt.settings().rotateTabsSec > 0 ? (
+          <label>
+            a cada (s)
+            <input
+              type="number"
+              min={10}
+              max={600}
+              value={rt.settings().rotateTabsSec}
+              onChange={(e) =>
+                void rt.setSettings({ rotateTabsSec: Number((e.target as HTMLInputElement).value) })
+              }
+            />
+          </label>
+        ) : null}
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={rt.settings().gamesOnlyTracked}
+            onChange={(e) =>
+              void rt.setSettings({ gamesOnlyTracked: (e.target as HTMLInputElement).checked })
+            }
+          />
+          Aba Partidas: só partidas com acompanhados
+        </label>
+      </div>
+      <p class="hint">A rotação pula abas sem conteúdo; escolher uma aba reinicia a contagem.</p>
       <div class="row">
         <label class="grow">
           Preset

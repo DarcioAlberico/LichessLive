@@ -1,5 +1,28 @@
 # Notas de versão
 
+## 1.0.6 — 14/10/2026
+
+Dez melhorias na composição e na operação:
+
+1. **Relógio em alerta**: o relógio fica vermelho quando resta pouco tempo — 10% do tempo inicial do torneio, entre 5 e 30 s (20 s quando o ritmo é desconhecido).
+2. **Balanço material** nas fichas, no estilo do Lichess: as peças a mais de cada lado e a vantagem em pontos ("+3").
+3. **Xeque no tabuleiro**: a casa do rei em xeque ganha um brilho vermelho.
+4. **Último lance** na ficha de quem jogou, com número do lance e letras em português ("24… Dxe4+"). O lance só aparece quando reproduz exatamente a posição recebida, e o "#" só quando a fonte informa mate.
+5. **Rotação automática das abas** (painel → _Programa_ → _Rodar as abas automaticamente_, de 10 a 600 s, padrão 20 s). Abas sem conteúdo são puladas; trocar de aba à mão reinicia a contagem.
+6. **Classificação acompanha o jogador**: a lista rola sozinha até o jogador selecionado (ou o primeiro acompanhado no recorte), sem atrapalhar quem está rolando a lista.
+7. **Team Battle**: posição e pontos do nosso team na barra superior ("2º de 3 · 40 pts"). Na aba Teams, a distância do nosso team para o 1º e os maiores pontuadores; nos outros teams, quantos pontos estão à frente ou atrás do nosso. Com pontos ocultos, tudo isso também fica oculto.
+8. **Antes do início**: contagem regressiva "Começa em …" na barra superior e aviso "O torneio começa às HH:MM".
+9. **Aba Partidas**: a partida no ar vem primeiro, com ponto vermelho e o subtítulo "No ar: A × B"; depois os favoritos (★) e a ordem de colocação. Filtro opcional _só partidas com acompanhados_ (painel → _Programa_).
+10. **Próxima partida do team** (botão no painel ou Alt+Shift+N): percorre as partidas em andamento dos acompanhados, do melhor colocado para o pior. Para achar partidas fora da lista de duelos do Lichess, a extensão consulta a partida atual de um acompanhado por vez, a cada ~8 s, só com o torneio em andamento (mesma fila serializada e mesma pausa de 60 s após HTTP 429).
+
+Correção: a partida em destaque do torneio (que quase sempre também está entre os duelos) perdia a colocação dos jogadores. Na aba Partidas, a linha ficava sem "(1º)" e ia para o fim da lista até a classificação chegar — e assim ficava para quem estivesse fora do recorte.
+
+Captura: `docs/capturas/melhorias-1.0.6.png` (xeque, último lance, relógio em alerta, material e partida no ar).
+
+Descartado: o indicador de sequência de vitórias ("fogo"). O endpoint de resultados não traz esse campo, e a variante com a planilha de pontos (`sheet=true`) foi 2,5× mais lenta numa Arena real; no lugar entrou o alerta de relógio.
+
+Atualização: substitua o conteúdo da pasta da extensão, clique em recarregar em `chrome://extensions` e aperte F5 na aba do torneio. Se o atalho Alt+Shift+N não aparecer, defina-o em `chrome://extensions/shortcuts`.
+
 ## 1.0.5 — 14/10/2026
 
 Melhorias nas abas da composição:

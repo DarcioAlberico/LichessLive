@@ -322,3 +322,48 @@ describe('falha de desenho da composição', () => {
     expect(host.textContent).toContain('TypeError: falha simulada');
   });
 });
+
+describe('melhorias visuais', () => {
+  it('destaca o rei em xeque e remove o destaque quando o xeque acaba', () => {
+    const b = new BoardView(document);
+    b.update({
+      fen: 'rnbqkbnr/ppppp1pp/5p2/7Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2',
+      lastMove: 'd1h5',
+      orientation: 'white',
+    });
+    expect(b.checkSquareIndex()).toBe(4);
+    expect(b.element.querySelectorAll('.lts-sq.check')).toHaveLength(1);
+    b.update({
+      fen: 'rnbqkbnr/ppppp2p/5pp1/7Q/4P3/8/PPPP1PPP/RNB1KBNR w KQkq - 0 3',
+      lastMove: 'g7g6',
+      orientation: 'white',
+    });
+    expect(b.checkSquareIndex()).toBeNull();
+    expect(b.element.querySelectorAll('.lts-sq.check')).toHaveLength(0);
+  });
+
+  it('a lista rola até o item em foco', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const items = Array.from({ length: 200 }, (_, i) => ({ id: `p${i}` }));
+    act(() => {
+      render(
+        <VirtualList
+          items={items}
+          getId={(r) => r.id}
+          rowHeight={30}
+          label="foco"
+          emptyText="vazio"
+          focusId="p150"
+          render={(r) => <span>{r.id}</span>}
+        />,
+        host,
+      );
+    });
+    const list = host.querySelector<HTMLElement>('.lts-list')!;
+    expect(list.scrollTop).toBeGreaterThan(30 * 100);
+    // A linha focada é renderizada (virtualização acompanha a rolagem).
+    expect(host.querySelector('[data-id="p150"]')).toBeTruthy();
+    render(null, host);
+  });
+});

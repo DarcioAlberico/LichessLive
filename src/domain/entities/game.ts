@@ -79,6 +79,8 @@ export interface GamePosition {
   clocks: ClockReading;
   /** Instante de recebimento (ms UTC). */
   receivedAt: number;
+  /** Último lance em notação, conferido contra esta posição (null quando não foi possível descrever). */
+  move?: { label: string; side: 'w' | 'b' } | null;
 }
 
 export interface GameOutcome {

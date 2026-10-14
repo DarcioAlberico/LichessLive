@@ -19,6 +19,13 @@ export interface PlayerCardVM {
   clockAvailable: boolean;
   toMove: boolean;
   rankText: string | null;
+  /** Relógio da posição abaixo do limite de alerta (proporcional ao ritmo do torneio). */
+  lowTime: boolean;
+  /** Último lance deste jogador, em notação ("12. Cf3"), quando foi ele quem jogou por último. */
+  lastMoveText: string | null;
+  /** Peças a mais (desenhadas na cor do adversário) e vantagem em pontos. */
+  materialPieces: string[];
+  materialPlus: number;
 }
 
 export interface BoardVM {
@@ -129,11 +136,21 @@ export interface TeamStandingRowVM {
   name: string;
   scoreText: string;
   isOurs: boolean;
+  /** Nosso team: distância para o team acima e principais pontuadores; outros: diferença para o nosso. */
+  detailText: string | null;
 }
 
 export interface TabsVM {
   available: ProgramTab[];
-  games: { title: string; coverageText: string; summaryText: string; rows: GameRowVM[] };
+  games: {
+    title: string;
+    coverageText: string;
+    summaryText: string;
+    /** "No ar: A × B" quando a partida principal está na lista. */
+    onAirText: string | null;
+    emptyText: string;
+    rows: GameRowVM[];
+  };
   team: { title: string; subtitle: string; summaryText: string; rows: TeamRowVM[] };
   ranking: {
     title: string;
@@ -160,6 +177,10 @@ export interface TopBarVM {
   statusText: string;
   /** Instante (ms UTC) em que o torneio termina, quando a fonte informa. */
   finishesAt: number | null;
+  /** Instante (ms UTC) de início, enquanto o torneio ainda não começou. */
+  startsAt: number | null;
+  /** Team Battle: posição e pontos do nosso team ("3º de 12 · 125 pts"). */
+  teamStatusText: string | null;
 }
 
 export interface FooterVM {

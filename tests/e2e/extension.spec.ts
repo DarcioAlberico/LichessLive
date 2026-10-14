@@ -347,3 +347,52 @@ test('composição continua visível mesmo com CSS da página que esconde elemen
   expect(m.h).toBe(m.vh);
   await page.screenshot({ path: 'test-results/programa-css-hostil.png' });
 });
+
+test('melhorias: xeque, último lance, partida no ar e próxima partida do team', async ({
+  context,
+  extensionId,
+}) => {
+  const studio = await openStudio(context, extensionId);
+  const page = await context.newPage();
+  await page.goto(`https://lichess.org/tournament/${TOUR}`);
+  await setBroadcast(studio, `https://lichess.org/tournament/${TOUR}`, true);
+
+  // Partida fora dos duelos, aberta pelo ID: termina em 2.Dh5+.
+  await studio.getByLabel('Partida (ID ou URL)').fill('GameDDD4');
+  await studio.getByRole('button', { name: 'Abrir partida' }).click();
+  await expect(program(page).locator('.lts-sq.check')).toHaveCount(1);
+  await expect(program(page).locator('.lts-card', { hasText: 'Sete_Fic' }).locator('.c-move')).toHaveText(
+    '2. Dh5+',
+  );
+  await expect(program(page).locator('.lts-card', { hasText: 'Oito_Fic' }).locator('.c-move')).toHaveCount(0);
+
+  // Lista local com dois acompanhados que estão em partidas do torneio.
+  await studio.getByLabel('Team (ID do Lichess) ou lista local').fill('_local');
+  await studio.getByRole('button', { name: 'Usar' }).click();
+  await studio
+    .getByLabel('Adicionar usernames (separados por vírgula ou espaço)')
+    .fill('Magnus_Ficticio, Alireza_Ficticio');
+  await studio.getByRole('button', { name: 'Adicionar', exact: true }).click();
+  await expect(studio.locator('#sec-team table')).toContainText('Alireza_Ficticio');
+
+  // Próxima partida do team: primeiro o melhor colocado (Magnus, 1º), depois Alireza (3º).
+  await studio.getByRole('button', { name: /Próxima partida do team/ }).click();
+  await expect(program(page).locator('.lts-cards')).toContainText('Magnus_Ficticio');
+  await expect(program(page).locator('.lts-foot')).toContainText('Acompanhando Magnus_Ficticio');
+  await studio.getByRole('button', { name: /Próxima partida do team/ }).click();
+  await expect(program(page).locator('.lts-cards')).toContainText('Alireza_Ficticio');
+
+  // Aba Partidas: a partida no ar vem primeiro, com indicador compacto e nomes inteiros.
+  await program(page).getByRole('tab', { name: 'Partidas' }).click();
+  await expect(program(page).locator('.p-onair')).toContainText(
+    'No ar: Alireza_Ficticio × EnxadristaHeterodoxo',
+  );
+  const first = program(page).locator('.lts-row').first();
+  await expect(first).toHaveClass(/onair/);
+  const magnusRow = program(page).locator('.lts-row', { hasText: 'Magnus_Ficticio' });
+  const cut = await magnusRow
+    .locator('.r-name')
+    .evaluateAll((els) => els.map((e) => e.scrollWidth - e.clientWidth));
+  expect(Math.max(...cut)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: 'test-results/melhorias-1080p.png' });
+});

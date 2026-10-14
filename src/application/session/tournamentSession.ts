@@ -1,4 +1,5 @@
 import type { StreamState } from '../../domain/entities/connection';
+import { describeMove } from '../../domain/entities/chess';
 import { parseFen } from '../../domain/entities/fen';
 import type {
   GameIdentity,
@@ -120,6 +121,8 @@ export class TournamentSession {
   presetId = 'single-1080';
   /** Instante do primeiro dado de ranking da referência (rótulo "Progresso desde 20h10"). */
   referenceStartAt: number | null = null;
+  /** Última verificação de partida de cada acompanhado (descoberta leve do team). */
+  readonly teamScanAt = new Map<UserId, number>();
 
   private observations = new Map<ProgressScope, Map<UserId, PlayerObservation[]>>();
   private readonly listeners = new Set<(kind: ChangeKind) => void>();
@@ -133,6 +136,9 @@ export class TournamentSession {
   private restoringPrevious = false;
   /** Partida e intenção do último pacote efetivamente exibido. */
   private lastCommitted: { gameId: GameId; mode: SelectionMode; followedUserId: UserId | null } | null = null;
+  /** Instante da última troca de aba (manual ou automática), para a rotação. */
+  private tabChangedAt = 0;
+  private scanCursor = 0;
 
   constructor(
     private readonly ctx: SessionContext,
@@ -144,6 +150,7 @@ export class TournamentSession {
     this.hideResults = settings.hideResultsDefault;
     this.activeTab = settings.lastTab;
     this.presetId = settings.activePresetId;
+    this.tabChangedAt = ctx.now();
     this.selection = setAutoSwitch(this.selection, settings.autoSwitch);
     this.scheduler = new TaskScheduler({
       now: ctx.now,
@@ -195,6 +202,17 @@ export class TournamentSession {
       },
       20_000,
     );
+    // Descoberta leve das partidas do team: uma consulta serializada a cada ~8 s, em rodízio.
+    this.scheduler.add(
+      {
+        name: 'teamScan',
+        interval: () => 8_000 * ctx.rest.frequencyFactor(),
+        enabled: () => this.tournament?.status === 'started' && this.trackedUserIds().length > 0,
+        essential: false,
+        run: () => this.teamScanStep(),
+      },
+      5_000,
+    );
   }
 
   get tournamentId(): TournamentId {
@@ -234,7 +252,34 @@ export class TournamentSession {
   }
 
   tick(): void {
-    if (!this.disposed) this.scheduler.tick();
+    if (this.disposed) return;
+    this.scheduler.tick();
+    this.maybeRotateTab();
+  }
+
+  /** Abas com conteúdo, na ordem de exibição (a rotação pula as vazias). */
+  rotationTabs(): ProgramTab[] {
+    const tracked = this.trackedUserIds().length > 0;
+    const tabs: ProgramTab[] = [];
+    if ([...this.identifiedGames.values()].some((g) => g.status === 'playing')) tabs.push('games');
+    if (tracked) tabs.push('team');
+    if (this.snapshot) tabs.push('ranking');
+    if (tracked && this.snapshot) tabs.push('progress');
+    if (this.tournament?.format === 'teamBattle' && (this.teamStandings?.length ?? 0) > 0) tabs.push('teams');
+    return tabs;
+  }
+
+  private maybeRotateTab(): void {
+    const sec = this.settings.rotateTabsSec;
+    if (!sec) return;
+    const now = this.ctx.now();
+    if (now - this.tabChangedAt < sec * 1000) return;
+    const tabs = this.rotationTabs();
+    this.tabChangedAt = now;
+    if (tabs.length < 2) return;
+    const i = tabs.indexOf(this.activeTab);
+    this.activeTab = tabs[(i + 1) % tabs.length]!;
+    this.emit('layout');
   }
 
   dispose(): void {
@@ -340,7 +385,18 @@ export class TournamentSession {
 
   setTab(tab: ProgramTab): void {
     this.activeTab = tab;
+    // Uma escolha manual reinicia a contagem da rotação.
+    this.tabChangedAt = this.ctx.now();
     this.emit('layout');
+  }
+
+  get gamesOnlyTracked(): boolean {
+    return this.settings.gamesOnlyTracked;
+  }
+
+  get tournamentClockLimitMs(): number | null {
+    const c = this.tournament?.clock;
+    return c ? c.limitSeconds * 1000 : null;
   }
 
   setHideResults(hide: boolean): void {
@@ -420,11 +476,23 @@ export class TournamentSession {
       const f = info.featured;
       current.add(f.gameId);
       const prev = this.identifiedGames.get(f.gameId);
+      // O destaque não traz a colocação; a partida costuma estar também nos duelos, que trazem.
+      const rankOf = (userId: UserId) => prev?.players.find((p) => p.userId === userId)?.rank ?? null;
       this.identifiedGames.set(f.gameId, {
         gameId: f.gameId,
         players: [
-          { userId: f.white.userId, name: f.white.name, rating: f.white.rating, rank: null },
-          { userId: f.black.userId, name: f.black.name, rating: f.black.rating, rank: null },
+          {
+            userId: f.white.userId,
+            name: f.white.name,
+            rating: f.white.rating,
+            rank: rankOf(f.white.userId),
+          },
+          {
+            userId: f.black.userId,
+            name: f.black.name,
+            rating: f.black.rating,
+            rank: rankOf(f.black.userId),
+          },
         ],
         status: 'playing',
         source: prev?.source ?? 'featured',
@@ -864,6 +932,85 @@ export class TournamentSession {
     this.emit('selection');
   }
 
+  /**
+   * Vai para a próxima partida em andamento com jogador acompanhado (ordem pela melhor posição),
+   * acompanhando esse jogador. Sem partidas conhecidas, antecipa a descoberta do team.
+   */
+  async nextTeamGame(): Promise<'switched' | 'only' | 'none'> {
+    const tracked = new Set(this.trackedUserIds());
+    const rankOf = (u: UserId) => this.snapshot?.byUser.get(u)?.rank ?? 1e9;
+    const live = [...this.identifiedGames.values()]
+      .filter((g) => g.status === 'playing' && g.players.some((p) => tracked.has(p.userId)))
+      .map((g) => {
+        const best = g.players
+          .filter((p) => tracked.has(p.userId))
+          .sort((a, b) => rankOf(a.userId) - rankOf(b.userId))[0]!;
+        return { gameId: g.gameId, best: best.userId };
+      })
+      .sort((a, b) => rankOf(a.best) - rankOf(b.best) || a.gameId.localeCompare(b.gameId));
+    if (live.length === 0) {
+      this.scheduler.runSoon('teamScan');
+      this.ctx.log.info('selection', 'nenhuma partida do team conhecida; descoberta antecipada');
+      return 'none';
+    }
+    const current = this.selection.gameId;
+    const i = live.findIndex((x) => x.gameId === current);
+    const next = live[(i + 1) % live.length]!;
+    if (next.gameId === current) return 'only';
+    this.selectGame(next.gameId, { followedUserId: next.best, mode: 'follow', explicit: false });
+    return 'switched';
+  }
+
+  /** Um passo da descoberta: consulta a partida atual do próximo acompanhado no rodízio. */
+  private async teamScanStep(): Promise<void> {
+    const rankOf = (u: UserId) => this.snapshot?.byUser.get(u)?.rank ?? 1e9;
+    const tracked = this.trackedUserIds().sort((a, b) => rankOf(a) - rankOf(b));
+    const n = tracked.length;
+    for (let k = 0; k < n; k++) {
+      const userId = tracked[(this.scanCursor + k) % n]!;
+      // Partidas vindas dos duelos do torneio já são atualizadas pelos metadados.
+      if (this.findPlayingGame(userId)?.source === 'duels') continue;
+      this.scanCursor = (this.scanCursor + k + 1) % n;
+      await this.checkPlayerGame(userId);
+      return;
+    }
+  }
+
+  private async checkPlayerGame(userId: UserId): Promise<void> {
+    const game = await this.ctx.lichess.currentGame(userId, { priority: 'normal' });
+    this.teamScanAt.set(userId, this.ctx.now());
+    // Partidas resolvidas antes e que não são a atual deixam de ser apresentadas como "em andamento".
+    const settle = (keep: GameId | null) => {
+      for (const g of this.identifiedGames.values()) {
+        if (
+          g.status === 'playing' &&
+          g.source === 'resolved' &&
+          g.gameId !== keep &&
+          g.players.some((p) => p.userId === userId)
+        ) {
+          g.status = 'unknown';
+        }
+      }
+    };
+    if (!game) {
+      settle(null);
+      this.emit('meta');
+      return;
+    }
+    const assoc = associateGame(game, userId, this.tournamentId);
+    if (assoc.kind === 'current') {
+      settle(assoc.gameId);
+      this.registerResolvedGame(game.gameId, game.white, game.black, 'playing');
+    } else {
+      settle(null);
+      if (assoc.kind === 'lastFinished') {
+        const known = this.identifiedGames.get(assoc.gameId);
+        if (known) known.status = 'finished';
+      }
+    }
+    this.emit('meta');
+  }
+
   findPlayingGame(userId: UserId): IdentifiedGame | undefined {
     let best: IdentifiedGame | undefined;
     for (const g of this.identifiedGames.values()) {
@@ -1038,7 +1185,7 @@ export class TournamentSession {
     const game = this.game;
     if (!game) return;
     if (msg.kind === 'move') {
-      const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks);
+      const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks, game.position);
       if (pos) {
         this.game = { ...game, position: pos };
         this.emit('board');
@@ -1051,7 +1198,12 @@ export class TournamentSession {
   private applyDescriptor(game: GameState, msg: Extract<GameStreamMessage, { kind: 'descriptor' }>): void {
     let next: GameState = game;
     if (msg.fen) {
-      const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks ?? game.position?.clocks ?? null);
+      const pos = this.toPosition(
+        msg.fen,
+        msg.lastMove,
+        msg.clocks ?? game.position?.clocks ?? null,
+        game.position,
+      );
       if (pos) next = { ...next, position: pos };
     }
     if (msg.status) {
@@ -1072,17 +1224,27 @@ export class TournamentSession {
     fen: string,
     lastMove: string | null,
     clocks: GamePosition['clocks'] | null,
+    previous: GamePosition | null = null,
   ): GamePosition | null {
     const parsed = parseFen(fen);
     if (!parsed.ok) {
       this.ctx.log.warn('stream', 'FEN inválida descartada', { detail: parsed.error });
       return null;
     }
+    let move: GamePosition['move'] = null;
+    if (previous && previous.fen === parsed.fen) {
+      // Mesma posição repetida (ex.: descrição final): mantém a notação já conferida.
+      move = previous.move ?? null;
+    } else if (previous && lastMove) {
+      const d = describeMove(previous.fen, lastMove, parsed.fen);
+      move = d ? { label: d.label, side: d.side } : null;
+    }
     return {
       fen: parsed.fen,
       lastMove,
       clocks: clocks ?? { whiteMs: null, blackMs: null, unit: 'seconds', anchoredToPosition: true },
       receivedAt: this.ctx.now(),
+      move,
     };
   }
 
@@ -1119,13 +1281,13 @@ export class TournamentSession {
       }
       loading.identity = msg.identity;
       if (msg.fen) {
-        const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks);
+        const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks, loading.position);
         if (pos) loading.position = pos;
       }
       if (msg.status && isFinishedStatus(msg.status))
         loading.outcome = { status: msg.status, winner: msg.winner };
     } else {
-      const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks);
+      const pos = this.toPosition(msg.fen, msg.lastMove, msg.clocks, loading.position);
       if (pos) loading.position = pos;
     }
     if (loading.identity && loading.position) this.commitLoading(loading);

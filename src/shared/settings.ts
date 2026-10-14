@@ -18,6 +18,10 @@ export interface Settings {
   lastTab: ProgramTab;
   /** Atalhos dentro da página de programa (além dos comandos remapeáveis do Chrome). */
   inPageShortcuts: boolean;
+  /** Rotação automática das abas do programa, em segundos (0 = desligada). */
+  rotateTabsSec: number;
+  /** Aba Partidas mostra só partidas com jogadores acompanhados. */
+  gamesOnlyTracked: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +37,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lastTeamId: null,
   lastTab: 'team',
   inPageShortcuts: true,
+  rotateTabsSec: 0,
+  gamesOnlyTracked: false,
 };
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -82,5 +88,9 @@ export function sanitizeSettings(value: unknown): Settings {
         ? (v.lastTab as ProgramTab)
         : d.lastTab,
     inPageShortcuts: typeof v.inPageShortcuts === 'boolean' ? v.inPageShortcuts : d.inPageShortcuts,
+    // 0 desliga; valores ligados ficam entre 10 s e 10 min.
+    rotateTabsSec:
+      typeof v.rotateTabsSec === 'number' && v.rotateTabsSec > 0 ? clampInt(v.rotateTabsSec, 10, 600, 20) : 0,
+    gamesOnlyTracked: typeof v.gamesOnlyTracked === 'boolean' ? v.gamesOnlyTracked : d.gamesOnlyTracked,
   };
 }

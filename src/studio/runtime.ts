@@ -135,6 +135,7 @@ export async function startStudioRuntime(): Promise<StudioRuntime> {
     else if (msg.type === 'lts:command') {
       const s = coordinator.focused;
       if (s && msg.command === 'flip') s.flip();
+      else if (s && msg.command === 'nextTeam') void s.nextTeamGame();
       else if (s) s.pin();
     } else if (msg.type === 'lts:dataChanged') {
       void (async () => {
