@@ -144,8 +144,15 @@ function currentGame(username: string) {
   };
 }
 
+/**
+ * CSS hostil observado em uso real (Chrome do apresentador): elementos anexados ao <html> eram
+ * reduzidos a 0×0, visibility hidden e opacity 0. A página simulada reproduz isso de propósito.
+ */
+const HOSTILE_CSS =
+  'html > *:not(head):not(body), html > div { width: 0 !important; height: 0 !important; visibility: hidden !important; opacity: 0 !important; overflow: hidden !important; }';
+
 const PAGE = (main: string, title: string) =>
-  `<!doctype html><html><head><title>${title}</title></head><body><header id="top">Lichess (simulado)</header>${main}<footer>rodapé nativo</footer></body></html>`;
+  `<!doctype html><html><head><title>${title}</title><style>${HOSTILE_CSS}</style></head><body><header id="top">Lichess (simulado)</header>${main}<footer>rodapé nativo</footer></body></html>`;
 
 export interface FakeStats {
   requests: string[];

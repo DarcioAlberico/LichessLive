@@ -316,3 +316,34 @@ test('importação de membros: lista pública com cobertura e lista privada com 
     options.getByText('A lista de membros deste team não é pública. Use o cadastro manual.'),
   ).toBeVisible();
 });
+
+test('composição continua visível mesmo com CSS da página que esconde elementos anexados', async ({
+  context,
+  extensionId,
+}) => {
+  const studio = await openStudio(context, extensionId);
+  const page = await context.newPage();
+  await page.goto(`https://lichess.org/tournament/${TOUR}`);
+  await setBroadcast(studio, `https://lichess.org/tournament/${TOUR}`, true);
+  await expect(program(page).locator('.lts-top')).toBeVisible();
+  const m = await page.evaluate(() => {
+    const host = document.getElementById('lts-root')!;
+    const cs = getComputedStyle(host);
+    const r = host.getBoundingClientRect();
+    return {
+      tag: host.tagName.toLowerCase(),
+      w: r.width,
+      h: r.height,
+      visibility: cs.visibility,
+      opacity: cs.opacity,
+      vw: innerWidth,
+      vh: innerHeight,
+    };
+  });
+  expect(m.tag).toBe('lts-program-root');
+  expect(m.visibility).toBe('visible');
+  expect(m.opacity).toBe('1');
+  expect(m.w).toBe(m.vw);
+  expect(m.h).toBe(m.vh);
+  await page.screenshot({ path: 'test-results/programa-css-hostil.png' });
+});

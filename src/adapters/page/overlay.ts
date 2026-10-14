@@ -10,6 +10,50 @@ import { ACTIVE_CLASS, PAGE_STYLE_ID, ROOT_ID } from './selectors';
 
 const PAGE_CSS = `html.${ACTIVE_CLASS}, html.${ACTIVE_CLASS} > body { overflow: hidden !important; }`;
 
+export const HOST_TAG = 'lts-program-root';
+
+/**
+ * Estilo da camada fixado inline com !important. Em uso real, um CSS externo (da página ou de outra
+ * extensão) reduziu a camada a 0×0, visibility hidden e opacity 0, deixando a página visível por
+ * baixo de uma composição invisível. Cada propriedade capaz de esconder ou deslocar a camada é fixada.
+ */
+const HOST_STYLE: Record<string, string> = {
+  all: 'initial',
+  position: 'fixed',
+  inset: '0',
+  top: '0',
+  left: '0',
+  right: '0',
+  bottom: '0',
+  width: '100vw',
+  height: '100vh',
+  'min-width': '0',
+  'min-height': '0',
+  'max-width': 'none',
+  'max-height': 'none',
+  margin: '0',
+  padding: '0',
+  border: '0',
+  display: 'block',
+  visibility: 'visible',
+  opacity: '1',
+  'z-index': '2147483646',
+  transform: 'none',
+  filter: 'none',
+  'clip-path': 'none',
+  'mix-blend-mode': 'normal',
+  contain: 'none',
+  'content-visibility': 'visible',
+  zoom: '1',
+  'pointer-events': 'auto',
+  overflow: 'visible',
+};
+
+export function applyHostStyle(host: HTMLElement): void {
+  // Ordem importa: "all" primeiro, depois as propriedades explícitas.
+  for (const [prop, value] of Object.entries(HOST_STYLE)) host.style.setProperty(prop, value, 'important');
+}
+
 export interface OverlayHandle {
   shadow: ShadowRoot;
   container: HTMLElement;
@@ -47,14 +91,11 @@ export class ProgramOverlay {
       hadClass: doc.documentElement.classList.contains(ACTIVE_CLASS),
     };
 
-    const host = doc.createElement('div');
+    // Elemento próprio (não `div`): regras genéricas da página ou de outras extensões não o alcançam.
+    const host = doc.createElement(HOST_TAG);
     host.id = ROOT_ID;
     host.setAttribute('data-lts', 'program');
-    const hs = host.style;
-    hs.setProperty('position', 'fixed', 'important');
-    hs.setProperty('inset', '0', 'important');
-    hs.setProperty('z-index', '2147483646', 'important');
-    hs.setProperty('display', 'block', 'important');
+    applyHostStyle(host);
     const shadow = host.attachShadow({ mode: 'open' });
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(this.css);
@@ -89,6 +130,7 @@ export class ProgramOverlay {
         if (this.host && !this.host.isConnected) {
           // O contêiner foi removido (remontagem da página): reanexa o mesmo root.
           this.doc.documentElement.appendChild(this.host);
+          applyHostStyle(this.host);
           this.doc.documentElement.classList.add(ACTIVE_CLASS);
           if (this.doc.body) this.doc.body.inert = true;
           this.onRemount?.();

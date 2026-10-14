@@ -1,5 +1,20 @@
 # Notas de versão
 
+## 1.0.4 — 14/10/2026
+
+- **Correção do modo transmissão invisível.** No Chrome do apresentador, um CSS externo (da página logada ou de outra extensão) reduzia a camada da composição a 0×0, `visibility: hidden` e `opacity: 0`: a composição era desenhada, mas a página do Lichess ficava visível por baixo. A camada agora é um elemento próprio (`<lts-program-root>`, fora do alcance de regras genéricas de `div`) com todas as propriedades capazes de escondê-la ou deslocá-la fixadas inline com `!important`. O Lichess simulado dos testes E2E passou a aplicar esse CSS hostil de propósito.
+
+## 1.0.3 — 14/10/2026
+
+- O popup mostra um diagnóstico da composição na aba (tamanho e visibilidade da camada, estilos aplicados, conteúdo desenhado e qual elemento aparece no centro da tela), para identificar casos em que a página do Lichess continua visível com o modo transmissão ativo.
+
+## 1.0.2 — 14/10/2026
+
+- O modo transmissão só é informado como ativo quando a composição está de fato na página; antes, uma falha ao montar ou desenhar deixava o popup em "ativo" com a página do Lichess visível por baixo.
+- Erros de desenho aparecem na própria composição e no popup (e no console com o prefixo `[Lichess Team Studio]`), em vez de uma camada transparente.
+- Ativar de novo numa aba em que a composição sumiu remonta a composição.
+- O popup avisa quando a aba do torneio foi aberta antes da extensão ser (re)carregada e pede F5.
+
 ## 1.0.1 — 12/10/2026
 
 - A cobertura padrão da classificação passa de 500 para **1000** participantes (o máximo do endpoint de resultados). Preferências salvas com o padrão antigo (500) são migradas para 1000; valores escolhidos pelo operador são mantidos.

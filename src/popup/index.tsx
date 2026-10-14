@@ -11,18 +11,35 @@ interface TabStatus {
   tabId: number | null;
   recognition: 'tournament' | 'swiss' | 'incompatible' | 'unknown';
   active: boolean;
+  error: string | null;
+  diagnostic: string | null;
 }
 
 async function currentStatus(): Promise<TabStatus> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || !tab.url) return { tabId: null, recognition: 'unknown', active: false };
+  if (!tab?.id || !tab.url)
+    return { tabId: null, recognition: 'unknown', active: false, error: null, diagnostic: null };
   const rec = recognizeUrl(tab.url);
   try {
     const res = (await chrome.tabs.sendMessage(tab.id, { type: 'lts:status' } satisfies RuntimeMessage)) as
-      { active?: boolean } | undefined;
-    return { tabId: tab.id, recognition: rec.kind, active: res?.active === true };
+      { active?: boolean; error?: string | null; diagnostic?: string | null } | undefined;
+    return {
+      tabId: tab.id,
+      recognition: rec.kind,
+      active: res?.active === true,
+      error: res?.error ?? null,
+      diagnostic: res?.diagnostic ?? null,
+    };
   } catch {
-    return { tabId: tab.id, recognition: rec.kind, active: false };
+    // Sem resposta: a aba foi aberta antes da extensão ser (re)carregada.
+    const stale = rec.kind === 'tournament' || rec.kind === 'swiss';
+    return {
+      tabId: tab.id,
+      recognition: rec.kind,
+      active: false,
+      error: stale ? 'A extensão ainda não está nesta aba. Recarregue a página do torneio (F5).' : null,
+      diagnostic: null,
+    };
   }
 }
 
@@ -51,6 +68,12 @@ function Popup() {
       <h1>Lichess Team Studio</h1>
       <p class="muted">Versão {version}</p>
       {!status ? <p>Verificando a aba…</p> : null}
+      {status?.error ? (
+        <p class="error" role="alert">
+          {status.error}
+        </p>
+      ) : null}
+      {status?.diagnostic ? <p class="muted small diag">Diagnóstico: {status.diagnostic}</p> : null}
       {status && status.recognition === 'incompatible' ? (
         <p>Abra a página de um torneio Arena do Lichess para ativar o modo transmissão.</p>
       ) : null}

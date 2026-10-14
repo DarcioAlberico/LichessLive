@@ -8,6 +8,8 @@ import { ProgramOverlay } from '../adapters/page/overlay';
 import { recognizePage } from '../adapters/page/recognizePage';
 import type { PanelLink } from '../presentation/components/ProgramApp';
 import { ProgramApp } from '../presentation/components/ProgramApp';
+import { ErrorBoundary } from '../presentation/components/ErrorBoundary';
+import { ROOT_ID } from '../adapters/page/selectors';
 import { PROGRAM_CSS } from '../presentation/components/programCss';
 import type { ProgramViewModel } from '../presentation/viewModels/types';
 import type {
@@ -46,12 +48,37 @@ class ProgramController {
   private lastUrl = location.href;
   private urlTimer: ReturnType<typeof setInterval> | null = null;
   active = false;
+  /** Último erro de ativação ou desenho (mostrado no popup e no console). */
+  lastError: string | null = null;
+
+  private reportError(stage: string, err: unknown): void {
+    this.lastError = `${stage}: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`;
+    console.error('[Lichess Team Studio]', stage, err);
+  }
 
   activate(): void {
-    if (this.active) return;
+    if (this.active) {
+      // Ativo mas sem composição na página (root removido ou desenho falhou): remonta.
+      if (document.getElementById(ROOT_ID)) return;
+      this.deactivate(false);
+    }
+    this.lastError = null;
+    try {
+      const { container } = this.overlay.mount(() => this.draw());
+      this.container = container;
+    } catch (err) {
+      this.reportError('montagem', err);
+      try {
+        this.overlay.unmount();
+      } catch {
+        /* nada a restaurar */
+      }
+      void chrome.runtime
+        .sendMessage({ type: 'lts:setTabActive', active: false } satisfies RuntimeMessage)
+        .catch(() => undefined);
+      return;
+    }
     this.active = true;
-    const { container } = this.overlay.mount(() => this.draw());
-    this.container = container;
     this.panel = 'connecting';
     this.draw();
     this.connect();
@@ -230,23 +257,30 @@ class ProgramController {
       this.vm && this.vm.main && this.vm.tabs && this.vm.layout && this.vm.top && this.vm.footer
         ? this.vm
         : null;
-    render(
-      <ProgramApp
-        vm={vmReady}
-        photoUrl={this.photoUrl}
-        onIntent={this.onIntent}
-        panel={this.panel}
-        unsupported={this.unsupported}
-        onOpenPanel={() =>
-          void chrome.runtime
-            .sendMessage({ type: 'lts:openStudio' } satisfies RuntimeMessage)
-            .catch(() => undefined)
-        }
-        onExit={() => this.deactivate()}
-        version={VERSION}
-      />,
-      this.container,
-    );
+    try {
+      render(
+        <ErrorBoundary onError={(err) => this.reportError('desenho', err)}>
+          <ProgramApp
+            vm={vmReady}
+            photoUrl={this.photoUrl}
+            onIntent={this.onIntent}
+            panel={this.panel}
+            unsupported={this.unsupported}
+            onOpenPanel={() =>
+              void chrome.runtime
+                .sendMessage({ type: 'lts:openStudio' } satisfies RuntimeMessage)
+                .catch(() => undefined)
+            }
+            onExit={() => this.deactivate()}
+            version={VERSION}
+          />
+        </ErrorBoundary>,
+        this.container,
+      );
+    } catch (err) {
+      this.reportError('desenho', err);
+      this.container.textContent = `Lichess Team Studio — erro ao desenhar a composição: ${this.lastError ?? ''}`;
+    }
   }
 
   private onResize = (): void => {
@@ -293,11 +327,43 @@ class ProgramController {
   status() {
     const page = recognizePage(document, window);
     return {
-      active: this.active,
+      // "Ativo" só quando a composição está de fato na página.
+      active: this.active && document.getElementById(ROOT_ID) !== null,
+      error: this.lastError,
       recognition: page.recognition,
       tournamentId: page.tournamentId,
       panel: this.panel,
+      diagnostic: this.active ? this.overlayDiagnostic() : null,
     };
+  }
+
+  /** Estado real da composição na página (exibido no popup para diagnóstico). */
+  private overlayDiagnostic(): string {
+    const host = document.getElementById(ROOT_ID);
+    if (!host) return 'composição ausente da página';
+    const r = host.getBoundingClientRect();
+    const cs = getComputedStyle(host);
+    const shadow = host.shadowRoot;
+    const app = shadow?.querySelector<HTMLElement>('.lts-app, .lts-center-msg');
+    const ar = app?.getBoundingClientRect();
+    const cx = Math.round(window.innerWidth / 2);
+    const cy = Math.round(window.innerHeight / 2);
+    const top = document.elementFromPoint(cx, cy);
+    const topText =
+      top === host
+        ? 'composição'
+        : top
+          ? `${top.tagName.toLowerCase()}${top.id ? '#' + top.id : ''}${typeof top.className === 'string' && top.className ? '.' + top.className.split(' ')[0] : ''}`
+          : 'nenhum';
+    return [
+      `camada ${Math.round(r.width)}×${Math.round(r.height)} ${cs.display}/${cs.visibility}/op ${cs.opacity}/z ${cs.zIndex}`,
+      `estilos ${shadow?.adoptedStyleSheets.length ?? 0}`,
+      app
+        ? `conteúdo ${app.className.split(' ')[0]} ${Math.round(ar!.width)}×${Math.round(ar!.height)} fundo ${getComputedStyle(app).backgroundColor}`
+        : 'conteúdo não desenhado',
+      `no centro: ${topText}`,
+      `filhos de <html>: ${[...document.documentElement.children].map((e) => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '')).join(',')}`,
+    ].join(' · ');
   }
 }
 

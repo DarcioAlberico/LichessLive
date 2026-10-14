@@ -300,3 +300,25 @@ describe('lista com retenção de ordem (T07)', () => {
     render(null, host);
   });
 });
+
+describe('falha de desenho da composição', () => {
+  it('mostra o erro na tela em vez de deixar a página transparente', async () => {
+    const { ErrorBoundary } = await import('../../src/presentation/components/ErrorBoundary');
+    const host = document.createElement('div');
+    const errors: unknown[] = [];
+    const Boom = () => {
+      throw new TypeError('falha simulada');
+    };
+    act(() => {
+      render(
+        <ErrorBoundary onError={(e) => errors.push(e)}>
+          <Boom />
+        </ErrorBoundary>,
+        host,
+      );
+    });
+    expect(errors).toHaveLength(1);
+    expect(host.textContent).toContain('erro ao desenhar a composição');
+    expect(host.textContent).toContain('TypeError: falha simulada');
+  });
+});
