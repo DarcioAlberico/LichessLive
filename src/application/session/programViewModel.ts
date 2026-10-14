@@ -13,6 +13,7 @@ import type { ProgramTab } from '../../shared/protocol/messages';
 import { formatHourLabel, formatTime } from '../../shared/time';
 import type {
   BannerVM,
+  GamePlayerVM,
   GameRowVM,
   MainGameVM,
   PlayerCardVM,
@@ -157,23 +158,53 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
   const trackedSet = new Set(tracked);
   const favorites = new Set(s.favorites);
 
+  // Progresso geral indexado por jogador (usado em várias abas).
+  const generalRows = s.progress.get('general') ?? [];
+  const progressByUser = new Map(generalRows.map((r) => [r.userId, r]));
+  const directionOf = (userId: string): 'up' | 'down' | 'none' => {
+    const st = progressByUser.get(userId as UserId)?.status;
+    return st === 'up' ? 'up' : st === 'down' ? 'down' : 'none';
+  };
+  const deltaOf = (userId: string): string | null => {
+    const r = progressByUser.get(userId as UserId);
+    return r && (r.status === 'up' || r.status === 'down') ? deltaLabel(r) : null;
+  };
+  const onAirGameId = s.game?.identity.gameId ?? null;
+
   // ---------------- Partidas
+  const gamePlayer = (
+    p: { userId: UserId; name: string; rating: number | null; rank: number | null } | undefined,
+  ): GamePlayerVM => {
+    if (!p) return { name: '?', rank: null, rating: null, photoId: null, initials: '?', ours: false };
+    const name = displayName(p.userId, p.name, s.profiles);
+    return {
+      name,
+      rank: snapshot?.byUser.get(p.userId)?.rank ?? p.rank,
+      rating: p.rating,
+      photoId: s.profiles.get(p.userId)?.photoId ?? null,
+      initials: initialsOf(name),
+      ours: trackedSet.has(p.userId) || favorites.has(p.userId),
+    };
+  };
   const games: GameRowVM[] = [...s.identifiedGames.values()]
-    .filter((g) => g.status !== 'finished' || g.gameId === s.game?.identity.gameId)
+    .filter((g) => g.status !== 'finished' || g.gameId === onAirGameId)
     .map((g) => {
       const [a, b] = g.players;
-      const fav = g.players.some((p) => trackedSet.has(p.userId) || favorites.has(p.userId));
-      const rankA = a ? (snapshot?.byUser.get(a.userId)?.rank ?? a.rank) : null;
-      const rankB = b ? (snapshot?.byUser.get(b.userId)?.rank ?? b.rank) : null;
+      const white = gamePlayer(a);
+      const black = gamePlayer(b);
       return {
         gameId: g.gameId,
-        white: a ? displayName(a.userId, a.name, s.profiles) : '?',
-        black: b ? displayName(b.userId, b.name, s.profiles) : '?',
-        whiteRank: rankA ?? null,
-        blackRank: rankB ?? null,
+        white: white.name,
+        black: black.name,
+        whiteRank: white.rank,
+        blackRank: black.rank,
         statusText:
           g.status === 'playing' ? 'Em andamento' : g.status === 'finished' ? 'Encerrada' : 'Desconhecido',
-        favorite: fav,
+        favorite: white.ours || black.ours,
+        whitePlayer: white,
+        blackPlayer: black,
+        onAir: g.gameId === onAirGameId,
+        live: g.status === 'playing',
       };
     })
     .sort(
@@ -200,6 +231,11 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
       else if (snapshot && !entry)
         statusText = snapshot.coverage.kind === 'complete' ? 'Não inscrito' : 'Fora do recorte';
       const rel = relMap.get(userId);
+      const opp = playing?.players.find((p) => p.userId !== userId);
+      const oppRank = opp ? (snapshot?.byUser.get(opp.userId)?.rank ?? opp.rank) : null;
+      const opponentText = opp
+        ? `vs ${displayName(opp.userId, opp.name, s.profiles)}${oppRank ? ` (${oppRank}º)` : ''}`
+        : null;
       return {
         userId,
         name,
@@ -212,6 +248,11 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
         relativeText: rel ? `${rel}º entre acompanhados` : null,
         gameId: playing?.gameId ?? null,
         linkNote,
+        playing: !!playing,
+        opponentText,
+        deltaText: deltaOf(userId),
+        direction: directionOf(userId),
+        onAir: !!playing && playing.gameId === onAirGameId,
         sortRank: entry?.rank ?? 1e9,
       };
     })
@@ -219,18 +260,33 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
     .map(({ sortRank: _s, ...row }) => row);
 
   // ---------------- Classificação
-  const rankingRows: RankingRowVM[] = (snapshot?.entries ?? []).map((e) => ({
-    userId: e.userId,
-    rank: e.rank,
-    name: displayName(e.userId, e.username, s.profiles),
-    title: e.title,
-    scoreText: hide ? '' : `${e.score}`,
-    teamName: isTB ? teamNameOf(s, e.teamId) : null,
-    watched: trackedSet.has(e.userId),
-  }));
+  const rankingRows: RankingRowVM[] = (snapshot?.entries ?? []).map((e) => {
+    const name = displayName(e.userId, e.username, s.profiles);
+    const watched = trackedSet.has(e.userId);
+    return {
+      userId: e.userId,
+      rank: e.rank,
+      name,
+      title: e.title,
+      scoreText: hide ? '' : `${e.score}`,
+      teamName: isTB ? teamNameOf(s, e.teamId) : null,
+      watched,
+      photoId: watched ? (s.profiles.get(e.userId)?.photoId ?? null) : null,
+      initials: initialsOf(name),
+      deltaText: watched ? deltaOf(e.userId) : null,
+      direction: watched ? directionOf(e.userId) : 'none',
+      podium: e.rank <= 3 ? (e.rank as 1 | 2 | 3) : 0,
+    };
+  });
+  const watchedInCut = rankingRows.filter((r) => r.watched);
+  const bestWatched = watchedInCut[0];
+  const rankingSummary =
+    tracked.length > 0 && snapshot
+      ? `${watchedInCut.length} de ${tracked.length} acompanhados no recorte${bestWatched ? ` · melhor: ${bestWatched.rank}º ${bestWatched.name}` : ''}`
+      : null;
 
   // ---------------- Progresso
-  const general = s.progress.get('general') ?? [];
+  const general = generalRows;
   const progressRows: ProgressRowVM[] = general
     .map((r) => {
       const profile = s.profiles.get(r.userId);
@@ -251,6 +307,11 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
           !hide && r.deltaScore !== null && r.deltaScore !== 0
             ? `${r.deltaScore > 0 ? '+' : ''}${r.deltaScore} pts`
             : null,
+        transitionText:
+          r.referenceRank !== null && r.currentRank !== null && r.referenceRank !== r.currentRank
+            ? `${r.referenceRank}º → ${r.currentRank}º`
+            : null,
+        stale: r.stale,
         sortRank: r.currentRank ?? 1e9,
       };
     })
@@ -267,6 +328,14 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
 
   const stale = s.isRankingStale();
   const rankingUpdated = snapshot ? formatTime(snapshot.endedAt, tz) : null;
+  const ups = general.filter((r) => r.status === 'up').length;
+  const downs = general.filter((r) => r.status === 'down').length;
+  const same = general.filter((r) => r.status === 'unchanged').length;
+  const progressSummary =
+    general.length > 0 ? `${ups} subiram · ${downs} desceram · ${same} mantiveram` : 'Aguardando observações';
+  const playingCount = teamRows.filter((r) => r.playing).length;
+  const teamSummary = `${teamRows.length} acompanhados · ${playingCount} jogando agora`;
+  const gamesWithOurs = games.filter((g) => g.favorite).length;
 
   // ---------------- Teams
   const teamsRows = (s.teamStandings ?? []).map((ts) => ({
@@ -341,7 +410,8 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
       available,
       games: {
         title: 'Partidas identificadas',
-        coverageText: `${games.length} partidas conhecidas · a lista não inclui todas as partidas do torneio`,
+        coverageText: 'A lista não inclui todas as partidas do torneio',
+        summaryText: `${games.length} partidas conhecidas · ${gamesWithOurs} com acompanhados`,
         rows: games.slice(0, 200),
       },
       team: {
@@ -349,6 +419,7 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
         subtitle: snapshot
           ? `Posição geral ${snapshot.provisional ? 'provisória' : 'final'} · ${rankingUpdated}`
           : 'Aguardando classificação',
+        summaryText: teamSummary,
         rows: teamRows,
       },
       ranking: {
@@ -356,12 +427,13 @@ export function buildProgramViewModel(s: TournamentSession, vc: ViewContext): Pr
         coverageText: snapshot ? `Cobertura: ${coverageLabel(snapshot.coverage)}` : 'Cobertura: indisponível',
         provisional: snapshot?.provisional ?? true,
         updatedText: rankingUpdated ? `Atualizada às ${rankingUpdated}` : 'Sem dados',
+        summaryText: rankingSummary,
         rows: rankingRows,
       },
       progress: {
         title: 'Progresso',
         referenceText,
-        scopeText: 'Posições observadas na classificação geral',
+        scopeText: `Posições observadas na classificação geral · ${progressSummary}`,
         staleText: stale && snapshot ? `Sem atualização desde ${formatTime(snapshot.endedAt, tz)}` : null,
         rows: progressRows,
       },

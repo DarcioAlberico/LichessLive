@@ -75,6 +75,24 @@ export const PROGRAM_CSS = `
 .lts-row .r-score { font-weight: 700; white-space: nowrap; flex: none; font-size: var(--f-meta); }
 .lts-row .r-col { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .lts-row .r-small { color: var(--text2); font-size: var(--f-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lts-row .r-name .ours { color: var(--accent); }
+.lts-row .r-vs { color: var(--text2); font-weight: 400; }
+.lts-row .r-star { color: #F2C46D; flex: none; }
+.lts-row .r-rank.podium { font-weight: 700; }
+.lts-row .r-rank.podium-1 { color: #F2C46D; }
+.lts-row .r-rank.podium-2 { color: #D5DCE5; }
+.lts-row .r-rank.podium-3 { color: #D9A066; }
+.lts-game { gap: 2px; }
+.lts-game-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lts-game-line .lts-photo.small { width: calc(var(--photo-s) * .8); height: calc(var(--photo-s) * .8); font-size: calc(var(--photo-s) * .3); }
+.lts-game-line .c-color { width: .6em; height: .6em; flex: none; }
+.lts-game-line .r-name { flex: 0 1 auto; }
+.lts-game-line .r-small { flex: none; }
+.lts-game-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
+.lts-delta.none { font-size: var(--f-meta); font-weight: 600; }
+.lts-live { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: #7EE2A8; margin-right: .4em; vertical-align: middle; box-shadow: 0 0 0 3px rgba(126,226,168,.25); }
+.lts-air { flex: none; font-size: calc(var(--f-meta) * .85); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #101722; background: #F2C46D; border-radius: 999px; padding: 2px 8px; }
+.lts-delta.inline { font-size: var(--f-meta); padding: 0 6px; margin-left: 6px; }
 .lts-delta { font-weight: 700; white-space: nowrap; flex: none; padding: 2px 8px; border-radius: 6px; }
 .lts-delta.up { color: #7EE2A8; }
 .lts-delta.down { color: #FF9B9B; }

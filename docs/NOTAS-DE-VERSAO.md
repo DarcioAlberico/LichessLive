@@ -1,5 +1,14 @@
 # Notas de versão
 
+## 1.0.5 — 14/10/2026
+
+Melhorias nas abas da composição:
+
+- **Partidas**: cada partida em duas linhas (brancas e pretas), com foto ou iniciais, rating e posição; jogadores acompanhados em destaque; selo **NO AR** na partida principal; resumo "N partidas conhecidas · M com acompanhados".
+- **Nosso team**: ponto verde em quem está jogando, com o adversário e a posição dele ("vs Fulano (12º)"); variação de posição ao lado do nome (▲ +3); selo NO AR; resumo "N acompanhados · M jogando agora".
+- **Classificação**: pódio destacado (1º, 2º, 3º); foto e variação de posição para os acompanhados; resumo "X de N acompanhados no recorte · melhor: 4º Nome".
+- **Progresso**: linha "6º → 3º" com a referência, variação de pontos, "tendência confirmada" e "sem atualização"; resumo "N subiram · N desceram · N mantiveram".
+
 ## 1.0.4 — 14/10/2026
 
 - **Correção do modo transmissão invisível.** No Chrome do apresentador, um CSS externo (da página logada ou de outra extensão) reduzia a camada da composição a 0×0, `visibility: hidden` e `opacity: 0`: a composição era desenhada, mas a página do Lichess ficava visível por baixo. A camada agora é um elemento próprio (`<lts-program-root>`, fora do alcance de regras genéricas de `div`) com todas as propriedades capazes de escondê-la ou deslocá-la fixadas inline com `!important`. O Lichess simulado dos testes E2E passou a aplicar esse CSS hostil de propósito.

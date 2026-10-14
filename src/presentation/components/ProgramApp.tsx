@@ -7,6 +7,7 @@ import type { ComputedLayout } from '../layouts/presets';
 import { computeLayout } from '../layouts/presets';
 import type {
   BoardVM,
+  GamePlayerVM,
   GameRowVM,
   MainGameVM,
   PlayerCardVM,
@@ -258,20 +259,30 @@ function Center({
   );
 }
 
+/** "2100 (5º)", "2100" ou "—": rating e posição de um jogador numa linha de partida. */
+function playerMeta(p: GamePlayerVM): string {
+  const parts = [p.rating ? String(p.rating) : null, p.rank ? `(${p.rank}º)` : null].filter(Boolean);
+  return parts.length ? parts.join(' ') : '—';
+}
+
 function GamesPanel({
   vm,
   rowHeight,
+  photoUrl,
   onIntent,
 }: {
   vm: ProgramViewModel;
   rowHeight: number;
+  photoUrl: ProgramProps['photoUrl'];
   onIntent: ProgramProps['onIntent'];
 }) {
   const t = vm.tabs.games;
   return (
     <>
       <h2>{t.title}</h2>
-      <div class="p-sub">{t.coverageText}</div>
+      <div class="p-sub">
+        {t.summaryText} · {t.coverageText}
+      </div>
       <VirtualList<GameRowVM>
         items={t.rows}
         getId={(r) => r.gameId}
@@ -282,18 +293,31 @@ function GamesPanel({
         onSelect={(id) => onIntent({ type: 'selectGame', gameId: id })}
         rowClass={(r) => (r.favorite ? 'watched' : '')}
         render={(r) => (
-          <div class="r-col">
-            <span class="r-name">
-              {r.favorite ? '★ ' : ''}
-              {r.white} × {r.black}
+          <>
+            <div class="r-col lts-game">
+              {(
+                [
+                  ['white', r.whitePlayer],
+                  ['black', r.blackPlayer],
+                ] as const
+              ).map(([color, p]) => (
+                <span class="lts-game-line" key={color}>
+                  <Photo url={photoUrl(p.photoId)} initials={p.initials} small />
+                  <span class={`c-color ${color}`} aria-hidden="true" />
+                  <span class={`r-name ${p.ours ? 'ours' : ''}`}>{p.name}</span>
+                  <span class="r-small">{playerMeta(p)}</span>
+                </span>
+              ))}
+            </div>
+            <span class="lts-game-side">
+              {r.onAir ? (
+                <span class="lts-air">No ar</span>
+              ) : r.favorite ? (
+                <span class="r-star">★</span>
+              ) : null}
+              {r.live ? null : <span class="r-small">{r.statusText}</span>}
             </span>
-            <span class="r-small">
-              {[r.whiteRank ? `${r.whiteRank}º` : null, r.blackRank ? `${r.blackRank}º` : null]
-                .filter(Boolean)
-                .join(' × ')}{' '}
-              · {r.statusText}
-            </span>
-          </div>
+          </>
         )}
       />
     </>
@@ -315,7 +339,9 @@ function TeamPanel({
   return (
     <>
       <h2>{t.title}</h2>
-      <div class="p-sub">{t.subtitle}</div>
+      <div class="p-sub">
+        {t.summaryText} · {t.subtitle}
+      </div>
       <VirtualList<TeamRowVM>
         items={t.rows}
         getId={(r) => r.userId}
@@ -329,11 +355,18 @@ function TeamPanel({
             <span class="r-rank">{r.rankText}</span>
             <Photo url={photoUrl(r.photoId)} initials={r.initials} small />
             <div class="r-col">
-              <span class="r-name">{r.name}</span>
+              <span class="r-name">
+                {r.playing ? <span class="lts-live" title="Jogando agora" /> : null}
+                {r.name}
+                {r.deltaText ? <span class={`lts-delta inline ${r.direction}`}>{r.deltaText}</span> : null}
+              </span>
               <span class="r-small">
-                {[r.statusText, r.relativeText, r.linkNote].filter(Boolean).join(' · ')}
+                {[r.playing ? (r.opponentText ?? 'Jogando') : r.statusText, r.relativeText, r.linkNote]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             </div>
+            {r.onAir ? <span class="lts-air">No ar</span> : null}
             <span class="r-score">{r.scoreText}</span>
           </>
         )}
@@ -345,10 +378,12 @@ function TeamPanel({
 function RankingPanel({
   vm,
   rowHeight,
+  photoUrl,
   onIntent,
 }: {
   vm: ProgramViewModel;
   rowHeight: number;
+  photoUrl: ProgramProps['photoUrl'];
   onIntent: ProgramProps['onIntent'];
 }) {
   const t = vm.tabs.ranking;
@@ -356,6 +391,7 @@ function RankingPanel({
     <>
       <h2>{t.title}</h2>
       <div class="p-sub">
+        {t.summaryText ? `${t.summaryText} · ` : ''}
         {t.coverageText} · {t.updatedText}
       </div>
       <VirtualList<RankingRowVM>
@@ -369,10 +405,12 @@ function RankingPanel({
         rowClass={(r) => (r.watched ? 'watched' : '')}
         render={(r) => (
           <>
-            <span class="r-rank">{r.rank}º</span>
+            <span class={`r-rank ${r.podium ? `podium podium-${r.podium}` : ''}`}>{r.rank}º</span>
+            {r.watched ? <Photo url={photoUrl(r.photoId)} initials={r.initials} small /> : null}
             <span class="r-name">
               {r.title ? <span class="c-title">{r.title} </span> : null}
               {r.name}
+              {r.deltaText ? <span class={`lts-delta inline ${r.direction}`}>{r.deltaText}</span> : null}
             </span>
             {r.teamName ? <span class="r-side">{r.teamName}</span> : null}
             <span class="r-score">{r.scoreText}</span>
@@ -414,7 +452,19 @@ function ProgressPanel({
           <>
             <span class="r-rank">{r.rankText}</span>
             <Photo url={photoUrl(r.photoId)} initials={r.initials} small />
-            <span class="r-name">{r.name}</span>
+            <div class="r-col">
+              <span class="r-name">{r.name}</span>
+              <span class="r-small">
+                {[
+                  r.transitionText,
+                  r.scoreDeltaText,
+                  r.confirmed ? 'tendência confirmada' : null,
+                  r.stale ? 'sem atualização' : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
             <span class={`lts-delta ${r.direction} ${r.confirmed ? 'confirmed' : ''}`}>{r.deltaText}</span>
           </>
         )}
@@ -509,12 +559,14 @@ function Side({
         ))}
       </div>
       <div class="lts-panel" id="lts-tabpanel" role="tabpanel" aria-labelledby={`lts-tab-${active}`}>
-        {active === 'games' ? <GamesPanel vm={vm} rowHeight={rh} onIntent={onIntent} /> : null}
+        {active === 'games' ? (
+          <GamesPanel vm={vm} rowHeight={Math.round(rh * 1.5)} photoUrl={photoUrl} onIntent={onIntent} />
+        ) : null}
         {active === 'team' ? (
           <TeamPanel vm={vm} rowHeight={rh} photoUrl={photoUrl} onIntent={onIntent} />
         ) : null}
         {active === 'ranking' ? (
-          <RankingPanel vm={vm} rowHeight={Math.round(rh * 0.8)} onIntent={onIntent} />
+          <RankingPanel vm={vm} rowHeight={Math.round(rh * 0.8)} photoUrl={photoUrl} onIntent={onIntent} />
         ) : null}
         {active === 'progress' ? (
           <ProgressPanel vm={vm} rowHeight={rh} photoUrl={photoUrl} onIntent={onIntent} />

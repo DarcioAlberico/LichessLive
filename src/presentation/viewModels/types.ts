@@ -45,6 +45,16 @@ export interface MainGameVM {
   isReplay: boolean;
 }
 
+export interface GamePlayerVM {
+  name: string;
+  rank: number | null;
+  rating: number | null;
+  photoId: string | null;
+  initials: string;
+  /** Jogador acompanhado (nosso team ou favorito). */
+  ours: boolean;
+}
+
 export interface GameRowVM {
   gameId: string;
   white: string;
@@ -53,6 +63,12 @@ export interface GameRowVM {
   blackRank: number | null;
   statusText: string;
   favorite: boolean;
+  whitePlayer: GamePlayerVM;
+  blackPlayer: GamePlayerVM;
+  /** É a partida principal exibida agora. */
+  onAir: boolean;
+  /** Em andamento segundo a fonte. */
+  live: boolean;
 }
 
 export interface TeamRowVM {
@@ -68,6 +84,12 @@ export interface TeamRowVM {
   relativeText: string | null;
   gameId: string | null;
   linkNote: string | null;
+  playing: boolean;
+  /** Adversário da partida em andamento, com posição quando conhecida. */
+  opponentText: string | null;
+  deltaText: string | null;
+  direction: 'up' | 'down' | 'none';
+  onAir: boolean;
 }
 
 export interface RankingRowVM {
@@ -78,6 +100,12 @@ export interface RankingRowVM {
   scoreText: string;
   teamName: string | null;
   watched: boolean;
+  photoId: string | null;
+  initials: string;
+  deltaText: string | null;
+  direction: 'up' | 'down' | 'none';
+  /** 1, 2 ou 3 para o pódio; 0 nos demais. */
+  podium: 0 | 1 | 2 | 3;
 }
 
 export interface ProgressRowVM {
@@ -90,6 +118,9 @@ export interface ProgressRowVM {
   direction: 'up' | 'down' | 'none';
   confirmed: boolean;
   scoreDeltaText: string | null;
+  /** "6º → 3º" quando há referência; null em Novo / Fora do recorte. */
+  transitionText: string | null;
+  stale: boolean;
 }
 
 export interface TeamStandingRowVM {
@@ -102,13 +133,14 @@ export interface TeamStandingRowVM {
 
 export interface TabsVM {
   available: ProgramTab[];
-  games: { title: string; coverageText: string; rows: GameRowVM[] };
-  team: { title: string; subtitle: string; rows: TeamRowVM[] };
+  games: { title: string; coverageText: string; summaryText: string; rows: GameRowVM[] };
+  team: { title: string; subtitle: string; summaryText: string; rows: TeamRowVM[] };
   ranking: {
     title: string;
     coverageText: string;
     provisional: boolean;
     updatedText: string;
+    summaryText: string | null;
     rows: RankingRowVM[];
   };
   progress: {
